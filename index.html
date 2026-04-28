@@ -290,13 +290,11 @@ details .details-body { padding: 0 1rem 1rem; border-top: 1px solid var(--line);
 .leaflet-popup-content-wrapper { border-radius: 6px; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
 .leaflet-popup-content { margin: 12px 14px; font-family: -apple-system, system-ui, sans-serif; font-size: 13px; line-height: 1.4; }
 .leaflet-popup-content b { color: #6b1f3a; }
-/* Round pins for normal sub-regions — climate color, white border */
 .wine-marker { border: 3px solid white; border-radius: 50%; width: 18px; height: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.4); background: #6ba85f; }
 .wine-marker.cool { background: #4a90b8; }
 .wine-marker.moderate { background: #6ba85f; }
 .wine-marker.warm { background: #d49032; }
 .wine-marker.hot { background: #c0432e; }
-/* Triangle SVG container for premium / top-tier sites */
 .wine-marker-tri { width: 28px; height: 28px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)); }
 .wine-marker-tri svg { width: 100%; height: 100%; display: block; }
 .wine-label { background: rgba(255,255,255,0.92); border: 1px solid rgba(0,0,0,0.15); border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; color: #2a2622; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -1852,833 +1850,480 @@ document.getElementById('sec-lo5').innerHTML = `
 <!-- ========== MAPS ========== -->
 <script>
 (function() {
-  // Helper to build a schematic map with climate zones and labeled pins
-  function mkMap(title, viewBox, content, legend, externalLinks, climateNote) {
-    return `
-      <div class="map-container">
-        <h3>${title}</h3>
-        ${climateNote ? `<p class="muted small">${climateNote}</p>` : ''}
-        <svg class="map-svg" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">${content}</svg>
-        <div class="map-legend">${legend}</div>
-        ${externalLinks ? `<p class="small muted" style="margin-top:0.5rem">Further reading: ${externalLinks}</p>` : ''}
-      </div>
-    `;
-  }
+  const baseUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+  const baseAttr = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+  const satAttr = 'Tiles &copy; Esri';
+  const topoUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+  const topoAttr = 'Tiles &copy; Esri';
 
-  function climateLegend(climates) {
-    const map = {
-      cool: ['#6ba6c9','Cool'], moderate: ['#88c068','Moderate'],
-      warm: ['#e8a838','Warm'], hot: ['#d9583e','Hot'],
-      maritime: ['#4a90a4','Maritime'], mediterranean: ['#d4a437','Mediterranean'], continental: ['#a05c3e','Continental']
+  const CLIMATE = { cool: '#4a90b8', moderate: '#6ba85f', warm: '#d49032', hot: '#c0432e' };
+
+  function circleIcon(climate) {
+    return L.divIcon({ className: '', html: '<div class="wine-marker ' + climate + '"></div>', iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -10] });
+  }
+  function triangleIcon(climate) {
+    const fill = CLIMATE[climate] || '#6b1f3a';
+    const svg = '<svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg"><polygon points="14,1 27,26 1,26" fill="#c9a961" stroke="white" stroke-width="0"/><polygon points="14,5 24,24 4,24" fill="' + fill + '" stroke="white" stroke-width="1.5"/></svg>';
+    return L.divIcon({ className: '', html: '<div class="wine-marker-tri">' + svg + '</div>', iconSize: [28, 28], iconAnchor: [14, 24], popupAnchor: [0, -22] });
+  }
+  function addPin(map, lat, lng, name, body, climate, premium) {
+    climate = climate || 'moderate';
+    premium = premium || false;
+    const icon = premium ? triangleIcon(climate) : circleIcon(climate);
+    const m = L.marker([lat, lng], { icon: icon }).addTo(map);
+    const label = premium ? '\u2605 ' + name : name;
+    m.bindPopup('<b>' + label + '</b>' + (body ? '<br>' + body : ''));
+    m.bindTooltip(label, { permanent: true, direction: 'right', offset: [premium ? 14 : 10, premium ? -8 : 0], className: 'wine-label' });
+    return m;
+  }
+  function renderMap(opts) {
+    const id = opts.id, title = opts.title, subtitle = opts.subtitle, center = opts.center, zoom = opts.zoom, tall = opts.tall, externalLinks = opts.externalLinks, keyTakeaway = opts.keyTakeaway, layer = opts.layer || 'base';
+    const tallClass = tall ? ' tall' : '';
+    const legendHtml = '<div class="map-legend">' +
+      '<span><span class="swatch" style="background:' + CLIMATE.cool + '"></span>Cool</span>' +
+      '<span><span class="swatch" style="background:' + CLIMATE.moderate + '"></span>Moderate</span>' +
+      '<span><span class="swatch" style="background:' + CLIMATE.warm + '"></span>Warm</span>' +
+      '<span><span class="swatch" style="background:' + CLIMATE.hot + '"></span>Hot</span>' +
+      '<span style="border-left:1px solid var(--line); padding-left:1rem">\u25b2 <em>Triangle = top-tier / premium site</em></span>' +
+      '</div>';
+    const linksHtml = externalLinks ? '<div class="map-external"><strong>\ud83d\udcd6 Further reading:</strong> ' + externalLinks + '</div>' : '';
+    const keyHtml = keyTakeaway ? '<div class="map-key"><strong>The "why" of this region:</strong> ' + keyTakeaway + '</div>' : '';
+    return {
+      html: '<div class="map-container"><h3>' + title + '</h3>' + (subtitle ? '<p class="map-subtitle">' + subtitle + '</p>' : '') + '<div id="' + id + '" class="map-leaflet' + tallClass + '"></div>' + legendHtml + linksHtml + keyHtml + '</div>',
+      init: function() {
+        const map = L.map(id, { scrollWheelZoom: false, zoomControl: true }).setView(center, zoom);
+        const url = layer === 'sat' ? satUrl : (layer === 'topo' ? topoUrl : baseUrl);
+        const attr = layer === 'sat' ? satAttr : (layer === 'topo' ? topoAttr : baseAttr);
+        L.tileLayer(url, { attribution: attr, maxZoom: 18 }).addTo(map);
+        map.on('click', function(){ map.scrollWheelZoom.enable(); });
+        document.getElementById(id)._leaflet_map = map;
+        return map;
+      }
     };
-    return climates.map(c => `<span><span class="swatch" style="background:${map[c][0]}"></span>${map[c][1]}</span>`).join('');
   }
 
-  function pin(x, y, label, color = '#6b1f3a') {
-    return `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="1.5"/><text x="${x+7}" y="${y+4}" font-size="10" fill="#1a1a1a" font-weight="600">${label}</text>`;
+  const blocks = [];
+  function defineRegion(opts, pinFn) {
+    const r = renderMap(opts);
+    const orig = r.init;
+    r.init = function() { const map = orig(); pinFn(map); return map; };
+    blocks.push(r);
   }
 
-  const maps = [];
-
-  // ===== 1. Bordeaux =====
-  maps.push(mkMap("Bordeaux — Left Bank vs Right Bank",
-    "0 0 400 350",
-    `
-      <!-- Land -->
-      <rect x="0" y="0" width="400" height="350" fill="#88c068" opacity="0.15"/>
-      <!-- Atlantic -->
-      <rect x="0" y="0" width="60" height="350" fill="#4a90a4" opacity="0.4"/>
-      <text x="10" y="175" font-size="11" fill="#1a3a5a" font-weight="600">ATLANTIC</text>
-      <!-- Gironde estuary splitting bank -->
-      <path d="M 140 30 Q 150 100 170 180 Q 175 230 165 320" fill="none" stroke="#4a90a4" stroke-width="14" opacity="0.6"/>
-      <text x="125" y="50" font-size="9" fill="#1a3a5a">Gironde</text>
-      <!-- Dordogne -->
-      <path d="M 165 220 Q 250 215 380 200" fill="none" stroke="#4a90a4" stroke-width="6" opacity="0.6"/>
-      <text x="280" y="195" font-size="8" fill="#1a3a5a">Dordogne</text>
-      <!-- Garonne -->
-      <path d="M 165 220 Q 230 270 380 320" fill="none" stroke="#4a90a4" stroke-width="6" opacity="0.6"/>
-      <text x="280" y="295" font-size="8" fill="#1a3a5a">Garonne</text>
-
-      <!-- Left bank pins -->
-      <text x="80" y="20" font-size="11" fill="#6b1f3a" font-weight="700">LEFT BANK (Cab Sauv on gravel)</text>
-      ${pin(95, 50, 'Saint-Estèphe')}
-      ${pin(100, 80, 'Pauillac')}
-      ${pin(105, 110, 'Saint-Julien')}
-      ${pin(115, 145, 'Margaux')}
-      ${pin(135, 200, 'Pessac-Léognan')}
-      ${pin(155, 250, 'Graves')}
-      ${pin(175, 295, 'Sauternes / Barsac', '#d4a437')}
-
-      <!-- Right bank -->
-      <text x="200" y="55" font-size="11" fill="#6b1f3a" font-weight="700">RIGHT BANK (Merlot on clay)</text>
-      ${pin(220, 165, 'Pomerol')}
-      ${pin(245, 180, 'Saint-Émilion')}
-
-      <!-- Entre-Deux-Mers -->
-      <text x="240" y="245" font-size="10" fill="#1a1a1a" opacity="0.6" font-style="italic">Entre-Deux-Mers</text>
-      <text x="245" y="258" font-size="8" fill="#1a1a1a" opacity="0.6" font-style="italic">(white wine area)</text>
-
-      <!-- City -->
-      <circle cx="155" cy="225" r="3" fill="#1a1a1a"/>
-      <text x="160" y="228" font-size="9" fill="#1a1a1a" font-weight="600">Bordeaux</text>
-    `,
-    climateLegend(['moderate','maritime']),
-    '<a href="https://winefolly.com/deep-dive/bordeaux-wine-map-and-classification/" target="_blank" rel="noopener">Wine Folly — Bordeaux</a> · <a href="https://www.guildsomm.com/public_content/features/maps/b/w/bordeaux" target="_blank" rel="noopener">GuildSomm</a>',
-    "Maritime climate moderated by Atlantic + Gironde estuary. Left Bank gravel ripens late Cab Sauv; Right Bank clay suits Merlot."
-  ));
-
-  // ===== 2. Burgundy =====
-  maps.push(mkMap("Burgundy — Côte d'Or & Beyond",
-    "0 0 200 500",
-    `
-      <rect width="200" height="500" fill="#88c068" opacity="0.15"/>
-      <!-- Saône river -->
-      <path d="M 130 0 Q 135 250 130 500" stroke="#4a90a4" stroke-width="5" opacity="0.5" fill="none"/>
-      <text x="140" y="250" font-size="8" fill="#1a3a5a" transform="rotate(90 140 250)">Saône</text>
-
-      <!-- Chablis (separated, north) -->
-      <rect x="20" y="20" width="80" height="40" fill="#6ba6c9" opacity="0.3" rx="4"/>
-      <text x="30" y="35" font-size="10" font-weight="700" fill="#6b1f3a">CHABLIS</text>
-      <text x="30" y="48" font-size="8" fill="#1a1a1a">100% Chardonnay</text>
-      <text x="30" y="58" font-size="8" fill="#1a1a1a" opacity="0.7">Kimmeridgian limestone</text>
-
-      <!-- Côte de Nuits -->
-      <rect x="65" y="100" width="55" height="100" fill="#6b1f3a" opacity="0.25" rx="3"/>
-      <text x="70" y="115" font-size="9" font-weight="700" fill="#6b1f3a">CÔTE DE NUITS</text>
-      <text x="70" y="128" font-size="8" fill="#1a1a1a">Pinot Noir kingdom</text>
-      ${pin(80, 145, 'Gevrey')}
-      ${pin(85, 165, 'Vougeot')}
-      ${pin(85, 180, 'Vosne')}
-      ${pin(90, 195, 'Nuits-St-G')}
-
-      <!-- Côte de Beaune -->
-      <rect x="65" y="215" width="55" height="100" fill="#d4a437" opacity="0.25" rx="3"/>
-      <text x="70" y="230" font-size="9" font-weight="700" fill="#6b1f3a">CÔTE DE BEAUNE</text>
-      <text x="70" y="243" font-size="8" fill="#1a1a1a">Chard + PN</text>
-      ${pin(85, 260, 'Beaune')}
-      ${pin(85, 275, 'Pommard')}
-      ${pin(85, 288, 'Meursault')}
-      ${pin(90, 302, 'Puligny')}
-
-      <!-- Côte Chalonnaise -->
-      <rect x="65" y="330" width="55" height="50" fill="#88c068" opacity="0.3" rx="3"/>
-      <text x="70" y="345" font-size="9" font-weight="700" fill="#6b1f3a">CHALONNAISE</text>
-      ${pin(85, 360, 'Mercurey')}
-
-      <!-- Mâconnais -->
-      <rect x="65" y="395" width="55" height="80" fill="#e8a838" opacity="0.3" rx="3"/>
-      <text x="70" y="410" font-size="9" font-weight="700" fill="#6b1f3a">MÂCONNAIS</text>
-      <text x="70" y="423" font-size="8" fill="#1a1a1a">Chard, warmer</text>
-      ${pin(85, 440, 'Pouilly-Fuissé')}
-    `,
-    climateLegend(['cool','continental']),
-    '<a href="https://www.bourgogne-wines.com/our-appellations,2376,9180.html" target="_blank" rel="noopener">BIVB Official</a> · <a href="https://winefolly.com/deep-dive/burgundy-wine-map/" target="_blank" rel="noopener">Wine Folly</a>',
-    "Cool continental. Mid-slope vineyards = best (frost protection from below, drainage from above). 4-tier hierarchy: Régional → Village → Premier Cru → Grand Cru."
-  ));
-
-  // ===== 3. Loire =====
-  maps.push(mkMap("Loire Valley — West to East",
-    "0 0 600 200",
-    `
-      <rect width="600" height="200" fill="#88c068" opacity="0.15"/>
-      <!-- Atlantic -->
-      <rect x="0" y="0" width="40" height="200" fill="#4a90a4" opacity="0.4"/>
-      <text x="5" y="100" font-size="9" fill="#1a3a5a" font-weight="600">ATL</text>
-      <!-- Loire river -->
-      <path d="M 40 100 Q 200 90 350 100 Q 500 105 580 80" stroke="#4a90a4" stroke-width="6" fill="none" opacity="0.6"/>
-      <text x="280" y="80" font-size="9" fill="#1a3a5a">Loire river</text>
-
-      <!-- Sub-region zones -->
-      <rect x="50" y="40" width="100" height="120" fill="#6ba6c9" opacity="0.2" rx="4"/>
-      <text x="55" y="55" font-size="9" font-weight="700" fill="#6b1f3a">PAYS NANTAIS</text>
-      <text x="55" y="155" font-size="8" fill="#1a1a1a">Maritime</text>
-      ${pin(80, 100, 'Muscadet')}
-
-      <rect x="160" y="40" width="120" height="120" fill="#88c068" opacity="0.2" rx="4"/>
-      <text x="165" y="55" font-size="9" font-weight="700" fill="#6b1f3a">ANJOU-SAUMUR</text>
-      ${pin(180, 100, 'Savennières')}
-      ${pin(220, 130, 'C. du Layon')}
-      ${pin(240, 105, 'Saumur')}
-
-      <rect x="290" y="40" width="120" height="120" fill="#88c068" opacity="0.25" rx="4"/>
-      <text x="295" y="55" font-size="9" font-weight="700" fill="#6b1f3a">TOURAINE</text>
-      ${pin(310, 105, 'Vouvray')}
-      ${pin(340, 130, 'Chinon')}
-      ${pin(370, 130, 'Bourgueil')}
-
-      <rect x="420" y="40" width="160" height="120" fill="#a05c3e" opacity="0.2" rx="4"/>
-      <text x="425" y="55" font-size="9" font-weight="700" fill="#6b1f3a">CENTRE</text>
-      <text x="425" y="155" font-size="8" fill="#1a1a1a">Continental</text>
-      ${pin(460, 105, 'Sancerre')}
-      ${pin(510, 105, 'Pouilly-F.')}
-      ${pin(510, 130, 'Menetou-S.')}
-    `,
-    climateLegend(['cool','maritime','continental']),
-    '<a href="https://www.loirevalleywine.com/discover-our-aocs/loire-wines-map/" target="_blank" rel="noopener">Loire Wines Official</a>',
-    "West (maritime) → East (continental). Chenin Blanc dominates middle, Sauvignon Blanc east, Melon (Muscadet) west, Cab Franc reds in Touraine."
-  ));
-
-  // ===== 4. Rhône =====
-  maps.push(mkMap("Rhône Valley — North vs South",
-    "0 0 250 400",
-    `
-      <rect width="250" height="400" fill="#88c068" opacity="0.15"/>
-      <!-- Rhône river -->
-      <path d="M 125 0 Q 130 200 125 400" stroke="#4a90a4" stroke-width="6" fill="none" opacity="0.6"/>
-
-      <!-- Northern -->
-      <rect x="40" y="20" width="170" height="150" fill="#a05c3e" opacity="0.2" rx="4"/>
-      <text x="50" y="38" font-size="11" font-weight="700" fill="#6b1f3a">NORTHERN RHÔNE</text>
-      <text x="50" y="52" font-size="8" fill="#1a1a1a">Continental · Steep granite slopes · Syrah only red</text>
-      ${pin(95, 75, 'Côte Rôtie')}
-      ${pin(95, 92, 'Condrieu')}
-      ${pin(100, 110, 'Saint-Joseph')}
-      ${pin(140, 125, 'Hermitage')}
-      ${pin(140, 140, 'Crozes-H.')}
-      ${pin(140, 160, 'Cornas')}
-
-      <!-- Gap -->
-      <text x="80" y="200" font-size="9" fill="#1a1a1a" font-style="italic" opacity="0.7">~ 150 km gap (no major AOCs) ~</text>
-
-      <!-- Southern -->
-      <rect x="20" y="220" width="210" height="170" fill="#d4a437" opacity="0.25" rx="4"/>
-      <text x="30" y="238" font-size="11" font-weight="700" fill="#6b1f3a">SOUTHERN RHÔNE</text>
-      <text x="30" y="252" font-size="8" fill="#1a1a1a">Mediterranean · GSM blends · Mistral wind</text>
-      ${pin(80, 280, 'Côtes du Rhône')}
-      ${pin(85, 305, 'CdP (galets)', '#d9583e')}
-      ${pin(170, 305, 'Gigondas')}
-      ${pin(170, 325, 'Vacqueyras')}
-      ${pin(85, 345, 'Tavel (rosé)')}
-      ${pin(160, 345, 'Lirac')}
-    `,
-    climateLegend(['continental','mediterranean','warm']),
-    '<a href="https://www.vins-rhone.com/en/all-aocs" target="_blank" rel="noopener">Inter-Rhône Official</a>',
-    "Two distinct halves separated by ~150 km. North = Syrah single-varietal on steep granite slopes. South = GSM blends on flat sun-baked land."
-  ));
-
-  // ===== 5. Alsace + Champagne =====
-  maps.push(mkMap("Champagne & Alsace — Northern France",
-    "0 0 400 300",
-    `
-      <rect width="400" height="300" fill="#88c068" opacity="0.15"/>
-
-      <!-- Champagne -->
-      <ellipse cx="120" cy="100" rx="90" ry="60" fill="#6ba6c9" opacity="0.3"/>
-      <text x="80" y="50" font-size="12" font-weight="700" fill="#6b1f3a">CHAMPAGNE</text>
-      <text x="80" y="63" font-size="8" fill="#1a1a1a">Cool continental · 49°N · chalk subsoil</text>
-      ${pin(90, 80, 'Montagne de Reims (PN)')}
-      ${pin(110, 110, 'Vallée de la Marne (Meunier)')}
-      ${pin(95, 130, 'Côte des Blancs (Chard)')}
-      ${pin(160, 155, 'Côte des Bar')}
-
-      <!-- Alsace -->
-      <rect x="280" y="40" width="100" height="240" fill="#d4a437" opacity="0.25" rx="4"/>
-      <text x="290" y="60" font-size="12" font-weight="700" fill="#6b1f3a">ALSACE</text>
-      <text x="290" y="73" font-size="8" fill="#1a1a1a">Vosges rain shadow</text>
-      <text x="290" y="83" font-size="8" fill="#1a1a1a">Driest region in France</text>
-      <!-- Vosges Mtns -->
-      <rect x="245" y="40" width="25" height="240" fill="#5d4a36" opacity="0.4"/>
-      <text x="248" y="160" font-size="8" fill="white" transform="rotate(90 252 160)">Vosges Mts</text>
-      <!-- Rhine -->
-      <line x1="385" y1="40" x2="385" y2="280" stroke="#4a90a4" stroke-width="3" opacity="0.6"/>
-      <text x="365" y="285" font-size="7" fill="#1a3a5a">Rhine →</text>
-
-      ${pin(305, 110, 'Riesling')}
-      ${pin(305, 135, 'Gewurztraminer')}
-      ${pin(305, 160, 'Pinot Gris')}
-      ${pin(305, 185, 'Muscat')}
-      ${pin(305, 220, '51 Grand Crus', '#d9583e')}
-    `,
-    climateLegend(['cool','continental']),
-    '<a href="https://www.champagne.fr/en" target="_blank" rel="noopener">Comité Champagne</a> · <a href="https://www.vinsalsace.com/en/" target="_blank" rel="noopener">CIVA Alsace</a>',
-    "Both at viticultural margins. Champagne survives via chalk + cool acidity (perfect for sparkling base). Alsace survives via Vosges rain shadow + south-facing slopes."
-  ));
-
-  // ===== 6. Germany =====
-  maps.push(mkMap("Germany — Riesling Country",
-    "0 0 400 350",
-    `
-      <rect width="400" height="350" fill="#88c068" opacity="0.15"/>
-      <!-- Rhine -->
-      <path d="M 200 30 Q 205 150 220 250 Q 230 320 240 350" stroke="#4a90a4" stroke-width="5" fill="none" opacity="0.6"/>
-      <text x="160" y="200" font-size="8" fill="#1a3a5a">Rhine →</text>
-      <!-- Mosel -->
-      <path d="M 100 100 Q 130 130 180 165 Q 195 185 215 230" stroke="#4a90a4" stroke-width="4" fill="none" opacity="0.6"/>
-      <text x="100" y="90" font-size="9" fill="#1a3a5a" font-weight="600">Mosel river</text>
-
-      ${pin(115, 110, 'MOSEL', '#6ba6c9')}
-      <text x="125" y="125" font-size="8" fill="#1a1a1a">Slate, steep S-slopes</text>
-      <text x="125" y="135" font-size="8" fill="#1a1a1a">Lightest Riesling</text>
-
-      ${pin(180, 170, 'Nahe', '#88c068')}
-      ${pin(220, 195, 'Rheingau', '#88c068')}
-      <text x="232" y="208" font-size="7" fill="#1a1a1a">Drier, fuller</text>
-
-      ${pin(225, 240, 'Rheinhessen', '#88c068')}
-      <text x="240" y="252" font-size="7" fill="#1a1a1a">Largest region</text>
-
-      ${pin(245, 285, 'Pfalz', '#e8a838')}
-      <text x="260" y="295" font-size="7" fill="#1a1a1a">Warmer, riper</text>
-
-      ${pin(280, 320, 'Baden', '#e8a838')}
-      <text x="295" y="328" font-size="7" fill="#1a1a1a">Warmest · Spätburgunder</text>
-
-      ${pin(330, 130, 'Franken', '#88c068')}
-      <text x="340" y="143" font-size="7" fill="#1a1a1a">Silvaner specialty</text>
-    `,
-    climateLegend(['cool','moderate','continental']),
-    '<a href="https://www.germanwines.de/wines/german-wine-growing-regions/" target="_blank" rel="noopener">Wines of Germany</a>',
-    "Cool to moderate continental. Going south = warmer = riper, fuller, drier styles. Mosel = lightest. Baden = fullest, only viable Pinot region."
-  ));
-
-  // ===== 7. Italy north =====
-  maps.push(mkMap("Italy — North (Piemonte, Veneto, Tuscany)",
-    "0 0 500 400",
-    `
-      <rect width="500" height="400" fill="#88c068" opacity="0.15"/>
-      <!-- Italy boot outline -->
-      <path d="M 50 50 Q 100 30 200 60 Q 300 50 400 100 L 420 200 Q 380 300 320 380 L 250 380 Q 200 350 180 280 Q 130 200 80 150 Z" fill="#88c068" opacity="0.1"/>
-
-      <!-- Alps -->
-      <rect x="50" y="40" width="350" height="30" fill="#5d4a36" opacity="0.3"/>
-      <text x="200" y="58" font-size="9" fill="#1a1a1a">Alps</text>
-
-      <!-- Piemonte -->
-      <rect x="60" y="100" width="100" height="80" fill="#a05c3e" opacity="0.3" rx="4"/>
-      <text x="65" y="115" font-size="10" font-weight="700" fill="#6b1f3a">PIEMONTE</text>
-      ${pin(85, 135, 'Barolo')}
-      ${pin(85, 150, 'Barbaresco')}
-      ${pin(120, 135, 'Asti')}
-      ${pin(120, 165, 'Gavi')}
-
-      <!-- Trentino/Friuli -->
-      <rect x="180" y="80" width="120" height="40" fill="#6ba6c9" opacity="0.3" rx="4"/>
-      <text x="185" y="95" font-size="9" font-weight="700" fill="#6b1f3a">ALTO ADIGE / FRIULI</text>
-      <text x="185" y="110" font-size="8" fill="#1a1a1a">Pinot Grigio, alpine whites</text>
-
-      <!-- Veneto -->
-      <rect x="220" y="130" width="100" height="60" fill="#88c068" opacity="0.3" rx="4"/>
-      <text x="225" y="145" font-size="10" font-weight="700" fill="#6b1f3a">VENETO</text>
-      ${pin(240, 165, 'Soave')}
-      ${pin(240, 180, 'Valpolicella')}
-      ${pin(290, 165, 'Prosecco')}
-
-      <!-- Tuscany -->
-      <rect x="170" y="220" width="120" height="100" fill="#d4a437" opacity="0.25" rx="4"/>
-      <text x="175" y="235" font-size="10" font-weight="700" fill="#6b1f3a">TUSCANY</text>
-      ${pin(195, 255, 'Chianti Classico')}
-      ${pin(195, 275, 'Brunello')}
-      ${pin(195, 295, 'Vino Nobile')}
-      ${pin(245, 285, 'Bolgheri (coast)', '#d9583e')}
-
-      <text x="350" y="350" font-size="9" fill="#6b1f3a" font-weight="700">↓ South of Tuscany:</text>
-      <text x="350" y="362" font-size="8" fill="#1a1a1a">Lazio, Abruzzo, Campania,</text>
-      <text x="350" y="372" font-size="8" fill="#1a1a1a">Puglia, Basilicata, Sicily</text>
-    `,
-    climateLegend(['continental','moderate','warm','mediterranean']),
-    '<a href="https://winefolly.com/deep-dive/italian-wine-regions-map/" target="_blank" rel="noopener">Wine Folly — Italy</a>',
-    "North = continental Alpine + foothills (Piemonte Nebbiolo). Middle = warm Mediterranean (Tuscany Sangiovese). South = hot, late-ripening Aglianico/Nero d'Avola."
-  ));
-
-  // ===== 8. Spain =====
-  maps.push(mkMap("Spain — Key Regions",
-    "0 0 500 400",
-    `
-      <rect width="500" height="400" fill="#88c068" opacity="0.15"/>
-      <!-- Iberian outline (rough) -->
-      <path d="M 30 100 Q 40 70 80 60 Q 200 50 350 70 Q 420 90 450 200 Q 430 320 380 350 Q 200 370 80 350 Q 30 300 30 100 Z" fill="#d4a437" opacity="0.15"/>
-
-      <!-- Atlantic / Med labels -->
-      <text x="5" y="170" font-size="9" fill="#1a3a5a" font-weight="600">ATLANTIC</text>
-      <text x="465" y="250" font-size="9" fill="#1a3a5a" font-weight="600">MED</text>
-
-      <!-- Pyrenees -->
-      <text x="200" y="55" font-size="8" fill="#1a1a1a">— Pyrenees —</text>
-
-      <!-- Galicia -->
-      ${pin(55, 110, 'Rías Baixas (Albariño)', '#6ba6c9')}
-
-      <!-- Bierzo -->
-      ${pin(120, 130, 'Bierzo (Mencía)')}
-
-      <!-- Rioja / Navarra -->
-      ${pin(220, 110, 'Rioja DOCa', '#88c068')}
-      ${pin(280, 100, 'Navarra')}
-
-      <!-- Ribera del Duero -->
-      ${pin(180, 170, 'Ribera del Duero', '#88c068')}
-      <text x="195" y="183" font-size="7" fill="#1a1a1a">800m altitude</text>
-
-      <!-- Toro / Rueda -->
-      ${pin(140, 195, 'Toro')}
-      ${pin(140, 215, 'Rueda (Verdejo)')}
-
-      <!-- Catalunya -->
-      ${pin(370, 145, 'Penedès / Cava', '#d4a437')}
-      ${pin(380, 165, 'Priorat (slate)', '#d9583e')}
-
-      <!-- La Mancha -->
-      ${pin(220, 250, 'La Mancha (huge)', '#e8a838')}
-      <text x="240" y="262" font-size="7" fill="#1a1a1a">Hot continental plateau</text>
-
-      <!-- Levante -->
-      ${pin(330, 270, 'Jumilla (Monastrell)', '#d9583e')}
-
-      <!-- Jerez -->
-      ${pin(110, 340, 'Jerez/Sherry', '#d9583e')}
-      <text x="125" y="352" font-size="7" fill="#1a1a1a">Albariza · poniente/levante</text>
-    `,
-    climateLegend(['cool','moderate','warm','hot','mediterranean','continental']),
-    '<a href="https://winefolly.com/deep-dive/spanish-wine-regions-map/" target="_blank" rel="noopener">Wine Folly — Spain</a>',
-    "Massively varied. NW Atlantic = cool. Central plateau = hot continental. Mediterranean coast = warm. Jerez = hot but cooled by Atlantic poniente winds."
-  ));
-
-  // ===== 9. Portugal =====
-  maps.push(mkMap("Portugal — Vinho Verde to Douro to Alentejo",
-    "0 0 250 450",
-    `
-      <rect width="250" height="450" fill="#88c068" opacity="0.15"/>
-      <path d="M 60 30 L 200 30 L 210 200 L 200 420 L 60 420 Z" fill="#d4a437" opacity="0.15"/>
-
-      <text x="5" y="200" font-size="9" fill="#1a3a5a" font-weight="600">ATL</text>
-
-      <rect x="65" y="40" width="130" height="50" fill="#6ba6c9" opacity="0.3" rx="3"/>
-      ${pin(80, 65, 'Vinho Verde', '#6ba6c9')}
-      <text x="170" y="68" font-size="7" fill="#1a1a1a">Cool maritime · low alc</text>
-
-      <rect x="65" y="100" width="130" height="60" fill="#a05c3e" opacity="0.3" rx="3"/>
-      ${pin(155, 130, 'Douro / Port', '#d9583e')}
-      <text x="80" y="125" font-size="8" fill="#1a1a1a">Schist, terraces, hot</text>
-
-      <rect x="65" y="170" width="130" height="50" fill="#88c068" opacity="0.3" rx="3"/>
-      ${pin(110, 195, 'Dão')}
-      ${pin(85, 195, 'Bairrada')}
-
-      <rect x="65" y="230" width="130" height="50" fill="#e8a838" opacity="0.3" rx="3"/>
-      ${pin(110, 255, 'Lisboa')}
-
-      <rect x="65" y="290" width="130" height="120" fill="#d4a437" opacity="0.3" rx="3"/>
-      ${pin(130, 350, 'Alentejo', '#d9583e')}
-      <text x="80" y="320" font-size="8" fill="#1a1a1a">Hot Mediterranean</text>
-      <text x="80" y="395" font-size="7" fill="#1a1a1a">Ripe fruit-forward reds</text>
-    `,
-    climateLegend(['cool','warm','hot','maritime','mediterranean','continental']),
-    '<a href="https://www.winesofportugal.com/en/discover-wines/regions-and-wines/" target="_blank" rel="noopener">Wines of Portugal</a>',
-    "Vinho Verde (NW) cool/maritime. Douro hot continental sheltered by Serra do Marão. Alentejo hot Mediterranean."
-  ));
-
-  // ===== 10. Napa Valley =====
-  maps.push(mkMap("Napa Valley — Sub-AVAs",
-    "0 0 250 500",
-    `
-      <rect width="250" height="500" fill="#88c068" opacity="0.15"/>
-      <!-- Mountains -->
-      <rect x="20" y="50" width="40" height="430" fill="#5d4a36" opacity="0.3" rx="4"/>
-      <text x="25" y="250" font-size="8" fill="white" transform="rotate(90 30 250)">MAYACAMAS (W)</text>
-      <rect x="190" y="50" width="40" height="430" fill="#5d4a36" opacity="0.3" rx="4"/>
-      <text x="200" y="250" font-size="8" fill="white" transform="rotate(90 205 250)">VACA RANGE (E)</text>
-
-      <!-- Valley floor -->
-      <rect x="65" y="50" width="120" height="430" fill="#d4a437" opacity="0.2" rx="2"/>
-
-      <!-- SF Bay (south) -->
-      <rect x="0" y="450" width="250" height="50" fill="#4a90a4" opacity="0.3"/>
-      <text x="80" y="475" font-size="9" fill="#1a3a5a" font-weight="600">San Francisco Bay (cooling fog →)</text>
-
-      <text x="100" y="40" font-size="9" fill="#6b1f3a" font-weight="700">↑ NORTH (warmer)</text>
-
-      ${pin(125, 70, 'Calistoga (warmest)', '#d9583e')}
-      ${pin(125, 100, 'Howell Mtn (E hill)', '#a05c3e')}
-      ${pin(125, 130, 'Saint Helena')}
-      ${pin(125, 160, 'Spring Mtn (W hill)', '#a05c3e')}
-      ${pin(125, 195, 'Rutherford (Cab heart)', '#e8a838')}
-      ${pin(125, 230, 'Oakville (premium Cab)', '#e8a838')}
-      ${pin(125, 270, 'Mount Veeder (W hill)', '#a05c3e')}
-      ${pin(125, 310, 'Stags Leap District', '#e8a838')}
-      ${pin(125, 360, 'Yountville')}
-      ${pin(125, 400, 'Napa city')}
-      ${pin(125, 435, 'Carneros (cool · PN/Chard)', '#6ba6c9')}
-    `,
-    climateLegend(['cool','warm','hot','mediterranean']),
-    '<a href="https://napavintners.com/napa_valley/maps.asp" target="_blank" rel="noopener">Napa Vintners Official</a>',
-    "Cooler in south (Carneros: SF Bay fog) → warmer in north (Calistoga). Mountain AVAs above fog line: structured, age-worthy. Valley floor: ripe, opulent Cab."
-  ));
-
-  // ===== 11. Sonoma =====
-  maps.push(mkMap("Sonoma County — Coast to Inland",
-    "0 0 400 300",
-    `
-      <rect width="400" height="300" fill="#88c068" opacity="0.15"/>
-      <!-- Pacific -->
-      <rect x="0" y="0" width="60" height="300" fill="#4a90a4" opacity="0.4"/>
-      <text x="10" y="150" font-size="10" fill="#1a3a5a" font-weight="600">PACIFIC</text>
-      <text x="10" y="165" font-size="8" fill="#1a3a5a">+ FOG →</text>
-
-      <!-- Sonoma Coast -->
-      <rect x="60" y="40" width="80" height="230" fill="#6ba6c9" opacity="0.3" rx="4"/>
-      ${pin(80, 100, 'Sonoma Coast (PN/Chard)', '#6ba6c9')}
-      <text x="70" y="220" font-size="7" fill="#1a1a1a">Coolest · fog</text>
-
-      <!-- Russian River Valley -->
-      <rect x="150" y="100" width="100" height="80" fill="#88c068" opacity="0.3" rx="4"/>
-      ${pin(170, 130, 'Russian River Valley', '#88c068')}
-      <text x="155" y="160" font-size="7" fill="#1a1a1a">Petaluma Gap fog</text>
-      <text x="155" y="172" font-size="7" fill="#1a1a1a">Premier Pinot/Chard</text>
-
-      <!-- Dry Creek Valley -->
-      <rect x="155" y="50" width="80" height="40" fill="#d4a437" opacity="0.3" rx="4"/>
-      ${pin(175, 70, 'Dry Creek (Zin)', '#e8a838')}
-
-      <!-- Alexander Valley -->
-      <rect x="245" y="50" width="100" height="80" fill="#e8a838" opacity="0.3" rx="4"/>
-      ${pin(265, 80, 'Alexander Valley (Cab)', '#e8a838')}
-      <text x="260" y="105" font-size="7" fill="#1a1a1a">Warmer · ripe Cab</text>
-
-      <!-- Carneros -->
-      <rect x="220" y="220" width="120" height="50" fill="#6ba6c9" opacity="0.3" rx="4"/>
-      ${pin(245, 250, 'Carneros (shared w/ Napa)', '#6ba6c9')}
-    `,
-    climateLegend(['cool','moderate','warm','mediterranean','maritime']),
-    '<a href="https://sonomawine.com/our-region/" target="_blank" rel="noopener">Sonoma County Vintners</a>',
-    "Pacific fog penetrates inland through gaps (Petaluma Gap). Coastal/RRV = cool Pinot/Chard. Inland (Alexander, Dry Creek) = warm Cab/Zin."
-  ));
-
-  // ===== 12. Pacific NW =====
-  maps.push(mkMap("Pacific Northwest — Oregon & Washington",
-    "0 0 400 300",
-    `
-      <rect width="400" height="300" fill="#88c068" opacity="0.15"/>
-      <rect x="0" y="0" width="40" height="300" fill="#4a90a4" opacity="0.4"/>
-      <text x="5" y="150" font-size="9" fill="#1a3a5a" font-weight="600">PAC.</text>
-
-      <!-- Cascades -->
-      <rect x="160" y="0" width="35" height="300" fill="#5d4a36" opacity="0.4"/>
-      <text x="167" y="150" font-size="9" fill="white" transform="rotate(90 172 150)">CASCADES</text>
-
-      <!-- Oregon -->
-      <rect x="40" y="160" width="115" height="135" fill="#6ba6c9" opacity="0.3" rx="4"/>
-      <text x="48" y="180" font-size="11" font-weight="700" fill="#6b1f3a">OREGON</text>
-      <text x="48" y="195" font-size="8" fill="#1a1a1a">Cool maritime W of Cascades</text>
-      ${pin(75, 220, 'Willamette Valley')}
-      <text x="48" y="245" font-size="8" fill="#1a1a1a">Pinot Noir / Pinot Gris</text>
-
-      <!-- Washington E of Cascades -->
-      <rect x="200" y="20" width="180" height="200" fill="#e8a838" opacity="0.3" rx="4"/>
-      <text x="210" y="40" font-size="11" font-weight="700" fill="#6b1f3a">WASHINGTON (E of Cascades)</text>
-      <text x="210" y="55" font-size="8" fill="#1a1a1a">Continental / arid (rain shadow)</text>
-      ${pin(245, 90, 'Columbia Valley')}
-      ${pin(245, 115, 'Yakima Valley')}
-      ${pin(285, 145, 'Walla Walla')}
-      ${pin(285, 165, 'Red Mountain', '#d9583e')}
-      <text x="210" y="195" font-size="8" fill="#1a1a1a">Cab, Merlot, Syrah, Riesling</text>
-    `,
-    climateLegend(['cool','warm','maritime','continental']),
-    '<a href="https://www.washingtonwine.org/discover/regions-and-avas" target="_blank" rel="noopener">WA Wine</a> · <a href="https://industry.oregonwine.org/resources/maps/" target="_blank" rel="noopener">OR Wine</a>',
-    "Cascade Mountains create the dividing line. West (Oregon Willamette) = cool maritime → Pinot. East (WA Columbia) = arid continental → Cab/Syrah/Riesling."
-  ));
-
-  // ===== 13. Chile =====
-  maps.push(mkMap("Chile — Costa, Entre Cordilleras, Andes",
-    "0 0 250 500",
-    `
-      <rect width="250" height="500" fill="#88c068" opacity="0.15"/>
-      <!-- Pacific -->
-      <rect x="0" y="0" width="50" height="500" fill="#4a90a4" opacity="0.4"/>
-      <text x="5" y="250" font-size="9" fill="#1a3a5a" font-weight="600">PACIFIC</text>
-      <text x="5" y="265" font-size="8" fill="#1a3a5a">(Humboldt</text>
-      <text x="5" y="277" font-size="8" fill="#1a3a5a">Current ↑)</text>
-
-      <!-- Coastal range -->
-      <rect x="50" y="0" width="25" height="500" fill="#5d4a36" opacity="0.3"/>
-      <text x="55" y="50" font-size="6" fill="white" transform="rotate(90 60 60)">COASTAL RANGE</text>
-
-      <!-- Central valley -->
-      <rect x="75" y="0" width="100" height="500" fill="#88c068" opacity="0.2"/>
-
-      <!-- Andes -->
-      <rect x="175" y="0" width="60" height="500" fill="#5d4a36" opacity="0.4"/>
-      <text x="195" y="250" font-size="9" fill="white" transform="rotate(90 200 250)">ANDES MOUNTAINS</text>
-
-      <text x="55" y="20" font-size="8" fill="#6b1f3a" font-weight="700">↑ N (warmer/dry)</text>
-
-      ${pin(110, 60, 'Elqui / Limarí', '#e8a838')}
-      ${pin(60, 100, 'Aconcagua (coast)', '#6ba6c9')}
-      ${pin(60, 130, 'Casablanca', '#6ba6c9')}
-      <text x="75" y="143" font-size="7" fill="#1a1a1a">Cool · SB</text>
-      ${pin(60, 160, 'San Antonio / Leyda', '#6ba6c9')}
-
-      ${pin(125, 200, 'Maipo (Cab)', '#88c068')}
-      <text x="80" y="225" font-size="7" fill="#1a1a1a">Santiago →</text>
-      ${pin(125, 240, 'Cachapoal (Carmenère)', '#88c068')}
-      ${pin(125, 270, 'Colchagua', '#88c068')}
-      ${pin(125, 305, 'Curicó')}
-      ${pin(125, 335, 'Maule (old vines)')}
-      ${pin(110, 380, 'Itata (S)')}
-      ${pin(110, 415, 'Bío-Bío')}
-    `,
-    climateLegend(['cool','warm','mediterranean','maritime','continental']),
-    '<a href="https://www.winesofchile.org/en/regions/" target="_blank" rel="noopener">Wines of Chile</a>',
-    "Three sub-zones added to DO labels: Costa (coastal/cool), Entre Cordilleras (central valley), Andes (high altitude). Same valley name, different climate by location."
-  ));
-
-  // ===== 14. Argentina =====
-  maps.push(mkMap("Argentina — Mendoza & Beyond",
-    "0 0 250 500",
-    `
-      <rect width="250" height="500" fill="#88c068" opacity="0.15"/>
-      <!-- Andes -->
-      <rect x="20" y="0" width="50" height="500" fill="#5d4a36" opacity="0.4"/>
-      <text x="40" y="250" font-size="10" fill="white" transform="rotate(90 45 250)">ANDES</text>
-
-      <text x="80" y="20" font-size="8" fill="#6b1f3a" font-weight="700">↑ N (warmer)</text>
-
-      ${pin(120, 70, 'Salta / Cafayate', '#d9583e')}
-      <text x="135" y="83" font-size="7" fill="#1a1a1a">Up to 3,000m! · Torrontés</text>
-
-      ${pin(120, 130, 'San Juan')}
-      <text x="135" y="143" font-size="7" fill="#1a1a1a">Hot · 2nd largest</text>
-
-      <rect x="80" y="200" width="160" height="170" fill="#d4a437" opacity="0.3" rx="4"/>
-      <text x="90" y="220" font-size="11" font-weight="700" fill="#6b1f3a">MENDOZA (heart)</text>
-      <text x="90" y="234" font-size="8" fill="#1a1a1a">Desert · altitude saves you</text>
-      ${pin(120, 260, 'Maipú (low ~700m)')}
-      ${pin(120, 290, 'Luján de Cuyo (~1,000m)', '#88c068')}
-      ${pin(150, 335, 'Uco Valley (1,000-1,500m)', '#6ba6c9')}
-      <text x="170" y="350" font-size="7" fill="#1a1a1a">Most elegant Malbec</text>
-
-      ${pin(110, 420, 'Patagonia (S, cool)', '#6ba6c9')}
-      <text x="125" y="433" font-size="7" fill="#1a1a1a">Pinot Noir terroir</text>
-    `,
-    climateLegend(['cool','warm','hot','continental']),
-    '<a href="https://www.winesofargentina.org/en/regions" target="_blank" rel="noopener">Wines of Argentina</a>',
-    "Desert at 30°S latitude — would be far too hot WITHOUT altitude. Vineyards 700-3,000m. Higher = cooler nights = more elegance & acidity."
-  ));
-
-  // ===== 15. South Africa =====
-  maps.push(mkMap("South Africa — Western Cape",
-    "0 0 400 350",
-    `
-      <rect width="400" height="350" fill="#88c068" opacity="0.15"/>
-      <!-- Atlantic -->
-      <rect x="0" y="0" width="40" height="350" fill="#4a90a4" opacity="0.4"/>
-      <text x="5" y="170" font-size="9" fill="#1a3a5a" font-weight="600">ATL</text>
-      <text x="5" y="185" font-size="8" fill="#1a3a5a">Benguela ↑</text>
-      <!-- Indian -->
-      <rect x="0" y="280" width="400" height="70" fill="#4a90a4" opacity="0.4"/>
-      <text x="180" y="320" font-size="9" fill="#1a3a5a" font-weight="600">INDIAN OCEAN</text>
-
-      ${pin(70, 180, 'Swartland', '#e8a838')}
-      <text x="85" y="195" font-size="7" fill="#1a1a1a">Old Chenin · Rhône blends</text>
-
-      ${pin(120, 220, 'Paarl')}
-      ${pin(140, 245, 'Stellenbosch (Cab/Pinotage)', '#d4a437')}
-      ${pin(120, 280, 'Constantia (sea)', '#6ba6c9')}
-      <text x="135" y="293" font-size="7" fill="#1a1a1a">Cape Doctor wind</text>
-
-      ${pin(220, 285, 'Walker Bay / Hemel-en-Aarde', '#6ba6c9')}
-      <text x="240" y="298" font-size="7" fill="#1a1a1a">Cool · Pinot Noir</text>
-
-      ${pin(180, 245, 'Elgin (cool, altitude)', '#6ba6c9')}
-
-      ${pin(280, 250, 'Robertson')}
-      ${pin(330, 260, 'Worcester')}
-      ${pin(360, 290, 'Elim (S coast)', '#6ba6c9')}
-    `,
-    climateLegend(['cool','warm','mediterranean']),
-    '<a href="https://www.wosa.co.za/Wine-Tourism/Wine-Routes/" target="_blank" rel="noopener">WoSA</a>',
-    "Mediterranean climate dramatically cooled by Benguela current (Atlantic) + Cape Doctor wind. Cape Point/Constantia/Walker Bay = cool maritime. Inland Stellenbosch = warmer."
-  ));
-
-  // ===== 16. Australia =====
-  maps.push(mkMap("Australia — Key Wine Regions",
-    "0 0 500 350",
-    `
-      <rect width="500" height="350" fill="#d4a437" opacity="0.1"/>
-      <!-- Australia outline -->
-      <path d="M 50 100 Q 100 50 250 60 Q 400 50 460 120 Q 480 200 440 280 Q 350 320 200 310 Q 80 290 50 200 Z" fill="#e8a838" opacity="0.15"/>
-
-      <text x="350" y="40" font-size="8" fill="#1a1a1a" font-weight="700">↓ S (cooler)</text>
-
-      <!-- WA -->
-      ${pin(70, 240, 'Margaret River (WA)', '#88c068')}
-      <text x="80" y="253" font-size="7" fill="#1a1a1a">Maritime · Bordeaux varieties</text>
-      ${pin(75, 270, 'Great Southern')}
-
-      <!-- SA -->
-      ${pin(220, 215, 'Clare Valley', '#88c068')}
-      ${pin(240, 230, 'Barossa Valley', '#d9583e')}
-      <text x="255" y="244" font-size="7" fill="#1a1a1a">Hot · old Shiraz</text>
-      ${pin(245, 248, 'Eden Valley (Riesling)', '#6ba6c9')}
-      ${pin(225, 265, 'Adelaide Hills', '#6ba6c9')}
-      ${pin(220, 285, 'McLaren Vale', '#e8a838')}
-      ${pin(260, 305, 'Coonawarra (terra rossa)', '#88c068')}
-
-      <!-- VIC -->
-      ${pin(330, 240, 'Heathcote (Shiraz)')}
-      ${pin(355, 265, 'Yarra Valley', '#6ba6c9')}
-      ${pin(360, 285, 'Mornington Pen.', '#6ba6c9')}
-
-      <!-- NSW -->
-      ${pin(395, 200, 'Hunter Valley', '#e8a838')}
-      <text x="410" y="213" font-size="7" fill="#1a1a1a">Sémillon · humid</text>
-
-      <!-- TAS -->
-      ${pin(370, 320, 'TASMANIA (sparkling base)', '#6ba6c9')}
-    `,
-    climateLegend(['cool','moderate','warm','hot','maritime','mediterranean','continental']),
-    '<a href="https://www.wineaustralia.com/discover-australian-wine/wine-regions" target="_blank" rel="noopener">Wine Australia</a>',
-    "Massive variation. Hot inland (Barossa floor, Hunter) vs cool coastal/altitude (Eden, Tas, Yarra, Adelaide Hills). Same state can have both (SA: Barossa hot, Eden cool just up the hill)."
-  ));
-
-  // ===== 17. New Zealand =====
-  maps.push(mkMap("New Zealand — North & South Island",
-    "0 0 350 400",
-    `
-      <rect width="350" height="400" fill="#88c068" opacity="0.15"/>
-
-      <!-- North Island -->
-      <ellipse cx="180" cy="100" rx="80" ry="70" fill="#88c068" opacity="0.25"/>
-      <text x="160" y="50" font-size="11" font-weight="700" fill="#6b1f3a">NORTH ISLAND</text>
-      ${pin(165, 80, 'Auckland')}
-      ${pin(220, 85, 'Gisborne (Chard)')}
-      ${pin(220, 110, "Hawke's Bay (Bordeaux+Syrah)", '#88c068')}
-      ${pin(180, 145, 'Martinborough (PN)', '#88c068')}
-
-      <!-- Cook Strait -->
-      <rect x="0" y="180" width="350" height="20" fill="#4a90a4" opacity="0.3"/>
-      <text x="120" y="195" font-size="7" fill="#1a3a5a">— Cook Strait —</text>
-
-      <!-- South Island -->
-      <ellipse cx="160" cy="290" rx="120" ry="100" fill="#88c068" opacity="0.25"/>
-      <text x="140" y="220" font-size="11" font-weight="700" fill="#6b1f3a">SOUTH ISLAND</text>
-      ${pin(195, 220, 'Marlborough (SB heart)', '#6ba6c9')}
-      <text x="210" y="234" font-size="7" fill="#1a1a1a">Aromatic · gravel · sun</text>
-      ${pin(140, 260, 'Nelson')}
-      ${pin(160, 290, 'Canterbury')}
-      ${pin(130, 350, 'Central Otago (PN)', '#a05c3e')}
-      <text x="145" y="365" font-size="7" fill="#1a1a1a">Only continental in NZ</text>
-    `,
-    climateLegend(['cool','moderate','maritime','continental']),
-    '<a href="https://www.nzwine.com/en/regions/" target="_blank" rel="noopener">NZ Wine</a>',
-    "Mostly cool maritime. Marlborough = SB capital (sun + cool nights = aromatic intensity). Central Otago = uniquely continental — premium Pinot Noir."
-  ));
-
-  // ===== 18. Champagne sub-regions detail (extra zoom) =====
-  maps.push(mkMap("Champagne — 5 Sub-regions in Detail",
-    "0 0 400 350",
-    `
-      <rect width="400" height="350" fill="#6ba6c9" opacity="0.1"/>
-      <!-- Reims -->
-      <text x="180" y="35" font-size="10" fill="#1a1a1a" font-weight="700">Reims (city)</text>
-      <circle cx="170" cy="42" r="3" fill="#1a1a1a"/>
-
-      <!-- Montagne de Reims -->
-      <ellipse cx="180" cy="90" rx="80" ry="30" fill="#a05c3e" opacity="0.3"/>
-      <text x="135" y="95" font-size="9" font-weight="700" fill="#6b1f3a">Montagne de Reims</text>
-      <text x="135" y="108" font-size="8" fill="#1a1a1a">PINOT NOIR (structure)</text>
-
-      <!-- Vallée de la Marne -->
-      <ellipse cx="170" cy="170" rx="100" ry="25" fill="#88c068" opacity="0.3"/>
-      <text x="125" y="170" font-size="9" font-weight="700" fill="#6b1f3a">Vallée de la Marne</text>
-      <text x="125" y="183" font-size="8" fill="#1a1a1a">MEUNIER (fruit, drinks young)</text>
-
-      <!-- Côte des Blancs -->
-      <ellipse cx="180" cy="240" rx="50" ry="35" fill="#f4e4a0" opacity="0.5"/>
-      <text x="155" y="240" font-size="9" font-weight="700" fill="#6b1f3a">Côte des Blancs</text>
-      <text x="155" y="253" font-size="8" fill="#1a1a1a">CHARDONNAY (finesse)</text>
-
-      <!-- Côte de Sézanne -->
-      <ellipse cx="100" cy="290" rx="55" ry="20" fill="#f4e4a0" opacity="0.4"/>
-      <text x="65" y="293" font-size="8" font-weight="700" fill="#6b1f3a">Côte de Sézanne</text>
-      <text x="65" y="305" font-size="7" fill="#1a1a1a">Chardonnay</text>
-
-      <!-- Côte des Bar -->
-      <ellipse cx="320" cy="290" rx="55" ry="25" fill="#a05c3e" opacity="0.3"/>
-      <text x="285" y="290" font-size="8" font-weight="700" fill="#6b1f3a">Côte des Bar</text>
-      <text x="285" y="303" font-size="7" fill="#1a1a1a">Pinot Noir (S, ripe)</text>
-
-      <line x1="320" y1="270" x2="240" y2="240" stroke="#6b1f3a" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
-      <text x="240" y="320" font-size="7" fill="#1a1a1a" opacity="0.7" font-style="italic">Côte des Bar is ~120 km SE</text>
-    `,
-    climateLegend(['cool','continental']),
-    '<a href="https://www.champagne.fr/en/from-vine-to-wine/champagne-vineyards/maps-of-champagne-region" target="_blank" rel="noopener">Champagne Official Maps</a>',
-    "5 sub-regions, each with its grape specialty. Blend across them = house style. NV blends across years AND regions."
-  ));
-
-  // ===== 19. Mosel =====
-  maps.push(mkMap("Mosel — Steep Slate Slopes",
-    "0 0 500 250",
-    `
-      <rect width="500" height="250" fill="#88c068" opacity="0.15"/>
-      <!-- Mosel river meandering -->
-      <path d="M 30 200 Q 100 100 180 180 Q 250 230 320 130 Q 400 50 480 150" stroke="#4a90a4" stroke-width="6" fill="none" opacity="0.6"/>
-      <text x="240" y="245" font-size="9" fill="#1a3a5a">Mosel river — meanders create south-facing slope sections</text>
-
-      <!-- Slate slopes (south facing) -->
-      <path d="M 80 130 L 130 60 L 180 130 Z" fill="#4a3328" opacity="0.4"/>
-      <path d="M 230 110 L 280 50 L 330 100 Z" fill="#4a3328" opacity="0.4"/>
-      <path d="M 380 100 L 430 30 L 480 100 Z" fill="#4a3328" opacity="0.4"/>
-
-      ${pin(130, 75, 'Bernkastel')}
-      ${pin(280, 65, 'Wehlen (Sonnenuhr)')}
-      ${pin(430, 50, 'Piesport')}
-
-      <!-- Sun -->
-      <circle cx="450" cy="40" r="20" fill="#e8a838" opacity="0.6"/>
-      <text x="445" y="35" font-size="9" fill="white">☀</text>
-
-      <text x="50" y="40" font-size="9" fill="#6b1f3a" font-weight="700">↑ N</text>
-      <text x="50" y="60" font-size="8" fill="#1a1a1a">South-facing slopes only viable</text>
-      <text x="50" y="72" font-size="8" fill="#1a1a1a">Slate absorbs heat → night radiates</text>
-      <text x="50" y="84" font-size="8" fill="#1a1a1a">River reflects light, moderates temp</text>
-    `,
-    climateLegend(['cool','continental']),
-    '<a href="https://www.weinland-mosel.de/en/" target="_blank" rel="noopener">Mosel Wine Region</a>',
-    "WHY this region works: south-facing slopes + dark slate + river moderation + steep angle (cold air drainage). Without ALL THREE → no quality wine at this latitude."
-  ));
-
-  // ===== 20. Jerez =====
-  maps.push(mkMap("Jerez — Sherry Triangle",
-    "0 0 400 350",
-    `
-      <rect width="400" height="350" fill="#88c068" opacity="0.15"/>
-      <!-- Atlantic -->
-      <rect x="0" y="0" width="80" height="350" fill="#4a90a4" opacity="0.4"/>
-      <text x="20" y="170" font-size="10" fill="#1a3a5a" font-weight="600">ATLANTIC</text>
-      <text x="15" y="185" font-size="8" fill="#1a3a5a">poniente wind →</text>
-      <text x="15" y="200" font-size="8" fill="#1a3a5a">(humid, cool)</text>
-
-      <!-- Albariza zone -->
-      <polygon points="120,80 320,90 290,250 130,240" fill="#faf6ee" stroke="#c9a961" stroke-width="2"/>
-      <text x="180" y="100" font-size="10" font-weight="700" fill="#6b1f3a">SHERRY TRIANGLE (Albariza soil)</text>
-      <text x="180" y="115" font-size="8" fill="#1a1a1a">Pale chalky soil — 30%+ chalk</text>
-      <text x="180" y="127" font-size="8" fill="#1a1a1a">Sponge-like water retention</text>
-
-      ${pin(160, 145, 'Sanlúcar de Barrameda', '#6ba6c9')}
-      <text x="175" y="158" font-size="7" fill="#1a1a1a">Manzanilla (sea air)</text>
-
-      ${pin(260, 175, 'Jerez de la Frontera')}
-      <text x="275" y="188" font-size="7" fill="#1a1a1a">Fino, all styles</text>
-
-      ${pin(170, 220, 'El Puerto de Santa María')}
-      <text x="185" y="233" font-size="7" fill="#1a1a1a">Fino, coastal influence</text>
-
-      <!-- Levante -->
-      <text x="335" y="170" font-size="8" fill="#a05c3e" font-weight="600">← levante wind</text>
-      <text x="335" y="183" font-size="7" fill="#1a1a1a">(hot, dry, from interior)</text>
-    `,
-    climateLegend(['hot','warm','maritime','mediterranean']),
-    '<a href="https://www.sherry.wine/sherry-region" target="_blank" rel="noopener">Consejo Regulador del Jerez</a>',
-    "Albariza absorbs winter rain → releases through dry summer. Pale color reflects sun. Cooling poniente wind from Atlantic moderates this hot region."
-  ));
-
-  // ===== Render all =====
-  document.getElementById('sec-maps').innerHTML = `
-    <h1>🗺 Visual Region Maps</h1>
-    <p class="muted">Schematic maps showing how climate, water, mountains and altitude shape each region. Each map links out to a detailed external map for deeper study.</p>
-    <div class="tip">For SWA Q1, examiners often show a map and ask you to identify a region or explain its climate features. Practice associating map features (slopes, rivers, oceans, mountains) with style.</div>
-    ${maps.join('')}
-  `;
+  // 1. BORDEAUX
+  defineRegion({
+    id: 'map-bordeaux', title: '\ud83c\uddeb\ud83c\uddf7 Bordeaux \u2014 Left Bank vs Right Bank',
+    subtitle: 'SW France \u00b7 the Gironde estuary divides two very different terroirs',
+    center: [44.95, -0.40], zoom: 9, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://winefolly.com/deep-dive/bordeaux-wine-map-and-classification/" target="_blank">Wine Folly</a> \u00b7 <a href="https://www.guildsomm.com/public_content/features/maps/b/w/bordeaux" target="_blank">GuildSomm</a> \u00b7 <a href="https://www.bordeaux.com/us/Our-Terroir/Map-of-Bordeaux" target="_blank">Bordeaux Official</a>',
+    keyTakeaway: 'Maritime climate moderated by Atlantic + Gironde estuary. <strong>Left Bank gravel</strong> drains well + retains heat \u2192 ripens late Cabernet Sauvignon. <strong>Right Bank clay</strong> holds water \u2192 suits earlier-ripening Merlot. Variable maritime weather forces vintage variation \u2192 blending essential.'
+  }, function(map) {
+    addPin(map, 45.2667, -0.7717, 'Saint-Est\u00e8phe', 'Northernmost M\u00e9doc cru. Sturdy, structured Cab blends.', 'moderate', true);
+    addPin(map, 45.2000, -0.7500, 'Pauillac', 'Home to 3 of 5 First Growths (Lafite, Latour, Mouton).', 'moderate', true);
+    addPin(map, 45.1500, -0.7333, 'Saint-Julien', 'Most consistent M\u00e9doc commune. Refined Cab blends.', 'moderate', true);
+    addPin(map, 45.0428, -0.6789, 'Margaux', 'Most "feminine" M\u00e9doc \u2014 perfumed, elegant.', 'moderate', true);
+    addPin(map, 44.7831, -0.5833, 'Pessac-L\u00e9ognan', 'Top Graves sub-region. Reds + dry whites.', 'moderate');
+    addPin(map, 44.5500, -0.4500, 'Sauternes', 'Botrytis-affected sweet whites (S\u00e9m + Sauv).', 'warm', true);
+    addPin(map, 44.9333, -0.2167, 'Pomerol', 'Tiny region, Merlot on iron-rich clay (P\u00e9trus).', 'moderate', true);
+    addPin(map, 44.8983, -0.1572, 'Saint-\u00c9milion', 'Largest Right Bank AOC. Limestone + clay.', 'moderate', true);
+    addPin(map, 44.8378, -0.5792, 'Bordeaux (city)', 'Trade capital. N\u00e9gociants on the Quai.', 'cool');
+    addPin(map, 44.78, -0.20, 'Entre-Deux-Mers', '"Between two seas". Dry whites.', 'moderate');
+  });
+
+  // 2. BURGUNDY
+  defineRegion({
+    id: 'map-burgundy', title: '\ud83c\uddeb\ud83c\uddf7 Burgundy \u2014 Chablis Down to the M\u00e2connais',
+    subtitle: 'A long N\u2013S strip of mostly Pinot Noir and Chardonnay',
+    center: [46.9, 4.85], zoom: 8, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.bourgogne-wines.com/our-appellations,2376,9180.html" target="_blank">BIVB Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/burgundy-wine-map/" target="_blank">Wine Folly</a> \u00b7 <a href="https://www.guildsomm.com/public_content/features/maps/b/w/burgundy" target="_blank">GuildSomm</a>',
+    keyTakeaway: 'Cool continental climate on limestone-rich slopes. <strong>Mid-slope vineyards = best</strong>. 4-tier hierarchy from regional Bourgogne to single-vineyard Grand Crus. Chardonnay and Pinot Noir only \u2014 these grapes are climate-sensitive, and Burgundy is at their cool-climate sweet spot.'
+  }, function(map) {
+    addPin(map, 47.8131, 3.7997, 'Chablis', 'COOL \u00b7 Kimmeridgian limestone. 100% Chardonnay \u2014 steely, mineral.', 'cool', true);
+    addPin(map, 47.2358, 4.9714, 'Gevrey-Chambertin', '9 Grand Crus \u00b7 powerful structured Pinot.', 'cool', true);
+    addPin(map, 47.1881, 4.9550, 'Vougeot', 'Famous Clos de Vougeot Grand Cru.', 'cool');
+    addPin(map, 47.1750, 4.9583, 'Vosne-Roman\u00e9e', 'Roman\u00e9e-Conti, La T\u00e2che \u2014 apex of Pinot Noir.', 'cool', true);
+    addPin(map, 47.1394, 4.9472, 'Nuits-Saint-Georges', 'Southern C\u00f4te de Nuits \u00b7 earthier, robust.', 'cool', true);
+    addPin(map, 47.0244, 4.8378, 'Beaune', 'Trade capital + Hospices de Beaune auction.', 'moderate', true);
+    addPin(map, 46.9886, 4.8053, 'Pommard', 'Iron-rich red soils \u2192 tannic, structured Pinot.', 'moderate');
+    addPin(map, 46.9780, 4.7680, 'Meursault', 'CHARDONNAY \u00b7 rich, hazelnut, oak-aged. No Grand Cru!', 'moderate', true);
+    addPin(map, 46.9447, 4.7558, 'Puligny-Montrachet', 'Le Montrachet GC = arguably world\'s greatest dry white.', 'moderate', true);
+    addPin(map, 46.9347, 4.7397, 'Chassagne-Montrachet', 'Shares Le Montrachet \u00b7 fuller Chard, also some PN.', 'moderate', true);
+    addPin(map, 46.6594, 4.7150, 'Mercurey', 'Largest Chalonnaise commune. Value PN.', 'moderate');
+    addPin(map, 46.7650, 4.7900, 'Rully', 'Cr\u00e9mant de Bourgogne base + Chard.', 'moderate');
+    addPin(map, 46.2875, 4.7297, 'Pouilly-Fuiss\u00e9', 'Top M\u00e2connais Chard \u00b7 richer, riper than the north.', 'warm', true);
+    addPin(map, 46.3056, 4.8311, 'M\u00e2con-Villages', 'Easy-drinking unoaked Chardonnay.', 'warm');
+  });
+
+  // 3. CHAMPAGNE
+  defineRegion({
+    id: 'map-champagne', title: '\ud83c\uddeb\ud83c\uddf7 Champagne \u2014 Northern Limit of Viticulture (49\u00b0N)',
+    subtitle: 'Five sub-regions, each with its own grape specialty. Cool continental over chalk subsoil.',
+    center: [49.05, 4.0], zoom: 9, layer: 'topo',
+    externalLinks: '<a href="https://www.champagne.fr/en/from-vine-to-wine/champagne-vineyards/maps-of-champagne-region" target="_blank">Champagne Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/champagne-wine-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'At the marginal cool limit (49\u00b0N) \u2192 grapes ripen with high acid + low alcohol \u2014 IDEAL base for traditional method sparkling. Chalk soils retain water + reflect light. NV blends across BOTH years AND sub-regions to maintain house style.'
+  }, function(map) {
+    addPin(map, 49.2628, 4.0347, 'Reims (city)', 'Northern trade capital. Many big houses.', 'cool');
+    addPin(map, 49.0428, 3.9603, '\u00c9pernay (city)', '"Avenue de Champagne" houses (Mo\u00ebt, Perrier-Jou\u00ebt).', 'cool');
+    addPin(map, 49.1500, 4.1500, 'Montagne de Reims', 'PINOT NOIR \u00b7 structure & body of NV blends.', 'cool', true);
+    addPin(map, 49.0500, 3.7500, 'Vall\u00e9e de la Marne', 'MEUNIER \u00b7 fruit, drinks young, frost-resistant.', 'cool', true);
+    addPin(map, 48.9667, 4.0000, 'C\u00f4te des Blancs', 'CHARDONNAY heartland \u00b7 finesse, age-worthiness, blanc de blancs.', 'cool', true);
+    addPin(map, 48.7167, 3.7167, 'C\u00f4te de S\u00e9zanne', 'Chardonnay \u00b7 southern extension of C\u00f4te des Blancs.', 'cool');
+    addPin(map, 48.1167, 4.0833, 'C\u00f4te des Bar (Aube)', 'Far SE \u00b7 warmer \u00b7 Pinot Noir-dominant.', 'moderate', true);
+  });
+
+  // 4. RHONE
+  defineRegion({
+    id: 'map-rhone', title: '\ud83c\uddeb\ud83c\uddf7 Rh\u00f4ne Valley \u2014 Two Distinct Halves',
+    subtitle: 'Northern Rh\u00f4ne (continental, granite, Syrah-only) vs Southern Rh\u00f4ne (Mediterranean, GSM blends)',
+    center: [44.5, 4.85], zoom: 8, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.vins-rhone.com/en/all-aocs" target="_blank">Inter-Rh\u00f4ne Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/rhone-france-wine-region-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'Two completely different wine regions sharing a name. <strong>North</strong>: terraced granite slopes need every degree of sun \u2192 Syrah is the only red permitted. <strong>South</strong>: flat sun-baked land + galets roul\u00e9s stones \u2192 Grenache-led GSM blends. The Mistral wind dries vineyards.'
+  }, function(map) {
+    addPin(map, 45.4861, 4.7822, 'C\u00f4te R\u00f4tie', 'Steep S-facing granite. Syrah \u00b1 up to 20% Viognier co-fermented.', 'moderate', true);
+    addPin(map, 45.4519, 4.7728, 'Condrieu', 'VIOGNIER only \u00b7 floral, peachy, full-bodied white.', 'moderate', true);
+    addPin(map, 45.0367, 4.8772, 'Hermitage', 'Granite hill on the LEFT bank \u00b7 powerful, age-worthy Syrah.', 'moderate', true);
+    addPin(map, 45.0789, 4.8417, 'Crozes-Hermitage', 'Larger AOC around Hermitage \u00b7 approachable Syrah.', 'moderate');
+    addPin(map, 44.9667, 4.8333, 'Cornas', '100% Syrah \u00b7 steep granite \u00b7 most rustic of the north.', 'moderate', true);
+    addPin(map, 45.2333, 4.8000, 'Saint-Joseph', 'Long thin AOC on the W bank \u00b7 medium-bodied Syrah.', 'moderate');
+    addPin(map, 44.0556, 4.8331, 'Ch\u00e2teauneuf-du-Pape', 'Up to 13 grapes \u00b7 galets roul\u00e9s. Grenache-led GSM.', 'hot', true);
+    addPin(map, 44.1167, 4.9667, 'Gigondas', 'Grenache-dominant \u00b7 structured, age-worthy.', 'hot', true);
+    addPin(map, 44.1333, 4.9500, 'Vacqueyras', 'Neighbor to Gigondas \u00b7 slightly more rustic.', 'hot');
+    addPin(map, 44.0167, 4.7667, 'Lirac', 'On W bank near Tavel \u00b7 all 3 colors.', 'warm');
+    addPin(map, 44.0167, 4.6833, 'Tavel', 'ROS\u00c9 ONLY AOC \u00b7 serious, structured, food ros\u00e9.', 'warm', true);
+  });
+
+  // 5. LOIRE
+  defineRegion({
+    id: 'map-loire', title: '\ud83c\uddeb\ud83c\uddf7 Loire Valley \u2014 West (Maritime) to East (Continental)',
+    subtitle: 'Follows the Loire river ~1,000km \u2014 climate shifts dramatically inland',
+    center: [47.3, 1.5], zoom: 7, layer: 'topo',
+    externalLinks: '<a href="https://www.loirevalleywine.com/discover-our-aocs/loire-wines-map/" target="_blank">Loire Wines Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/loire-valley-wine-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: '<strong>Chenin Blanc</strong>\'s extreme adaptability lets it make every style here from bone-dry (Savenni\u00e8res) to noble-rot sweet (Layon) to sparkling (Vouvray). <strong>Sauvignon Blanc on chalk/flint</strong> at Sancerre gives the famous flinty character.'
+  }, function(map) {
+    addPin(map, 47.2700, -1.6500, 'Muscadet (Pays Nantais)', 'COOL maritime \u00b7 Melon B \u00b7 sur lie aging.', 'cool', true);
+    addPin(map, 47.3833, -0.6500, 'Savenni\u00e8res', 'Anjou \u00b7 DRY Chenin Blanc \u00b7 age-worthy, mineral.', 'moderate', true);
+    addPin(map, 47.2000, -0.4500, 'Coteaux du Layon', 'Anjou \u00b7 SWEET Chenin from noble rot. Quarts de Chaume = top.', 'moderate', true);
+    addPin(map, 47.2667, -0.0833, 'Saumur', 'Cab Franc reds + Saumur Mousseux (sparkling Chenin).', 'moderate');
+    addPin(map, 47.2500, -0.0167, 'Saumur-Champigny', 'Top Saumur red \u00b7 Cab Franc on tuffeau.', 'moderate');
+    addPin(map, 47.4167, 0.7833, 'Vouvray', 'Touraine \u00b7 CHENIN at every sweetness + sparkling.', 'moderate', true);
+    addPin(map, 47.1667, 0.2500, 'Chinon', 'Cab Franc \u00b7 gravelly soils give riper style.', 'moderate', true);
+    addPin(map, 47.2833, 0.1833, 'Bourgueil', 'Cab Franc \u00b7 neighbour to Chinon, often more rustic.', 'moderate');
+    addPin(map, 47.3300, 2.8389, 'Sancerre', 'CONTINENTAL \u00b7 SAUVIGNON BLANC on chalk + flint.', 'cool', true);
+    addPin(map, 47.2997, 2.9806, 'Pouilly-Fum\u00e9', 'Across Loire from Sancerre \u00b7 SB on flint \u2192 famous "smoky" notes.', 'cool', true);
+    addPin(map, 47.2667, 2.5167, 'Menetou-Salon', 'Sauvignon Blanc \u00b7 value alternative to Sancerre.', 'cool');
+  });
+
+  // 6. ALSACE
+  defineRegion({
+    id: 'map-alsace', title: '\ud83c\uddeb\ud83c\uddf7 Alsace \u2014 Behind the Vosges Rain Shadow',
+    subtitle: 'NE France between Vosges Mountains and the Rhine. Driest region in France.',
+    center: [48.30, 7.50], zoom: 9, layer: 'topo',
+    externalLinks: '<a href="https://www.vinsalsace.com/en/" target="_blank">CIVA Alsace</a> \u00b7 <a href="https://winefolly.com/deep-dive/alsace-wine-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'The Vosges Mountains create a major rain shadow \u2192 Alsace is one of France\'s driest regions despite cool latitude. Cool continental + sunny dry days = aromatic high-acid whites. 4 "noble" grapes only for Grand Cru: Riesling, Gewurztraminer, Pinot Gris, Muscat.'
+  }, function(map) {
+    addPin(map, 48.5839, 7.7458, 'Strasbourg (city)', 'Northern trade hub.', 'cool');
+    addPin(map, 48.0794, 7.3585, 'Colmar (wine capital)', 'Heart of the Alsace wine route.', 'cool', true);
+    addPin(map, 48.2147, 7.4439, 'Riquewihr', 'Picture-perfect village \u00b7 Riesling stronghold.', 'cool', true);
+    addPin(map, 48.1664, 7.4156, 'Kaysersberg', 'Premium Riesling/Pinot Gris commune.', 'cool');
+    addPin(map, 48.0628, 7.3217, 'Eguisheim', 'Pfersigberg + Eichberg Grand Crus.', 'cool');
+    addPin(map, 48.1333, 7.3833, 'Turckheim', 'Brand Grand Cru \u00b7 varied granitic soils.', 'cool');
+    addPin(map, 48.1881, 7.4172, 'Hunawihr', 'Rosacker GC \u00b7 home to Trimbach\'s Clos Ste Hune.', 'cool', true);
+  });
+
+  // 7. GERMANY
+  defineRegion({
+    id: 'map-germany', title: '\ud83c\udde9\ud83c\uddea Germany \u2014 Cool North to Warmer South',
+    subtitle: 'All quality regions follow rivers (Rhine, Mosel) for moderating influence',
+    center: [50.0, 8.5], zoom: 7, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.germanwines.de/wines/german-wine-growing-regions/" target="_blank">Wines of Germany</a> \u00b7 <a href="https://winefolly.com/deep-dive/germany-wine-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'Cool to moderate continental. <strong>Going south = warmer = riper, fuller, drier styles.</strong> Mosel = lightest. Pfalz = riper. Baden = fullest, only viable Sp\u00e4tburgunder region. Pr\u00e4dikat scale measures grape RIPENESS, not necessarily sweetness.'
+  }, function(map) {
+    addPin(map, 49.9787, 7.0747, 'Mosel', 'COOLEST \u00b7 steep slate slopes \u00b7 lightest Riesling style.', 'cool', true);
+    addPin(map, 49.9000, 7.5500, 'Bernkastel (Mosel)', 'Famous town \u00b7 Doctor vineyard above.', 'cool');
+    addPin(map, 49.8800, 7.5667, 'Wehlen (Mosel)', 'Sundial (Sonnenuhr) vineyard \u00b7 J.J. Pr\u00fcm.', 'cool');
+    addPin(map, 49.8633, 6.9747, 'Nahe', 'Diverse soils \u00b7 increasingly serious dry Riesling.', 'cool');
+    addPin(map, 50.0064, 7.9747, 'Rheingau', 'S-facing on Rhine \u00b7 drier, fuller Riesling.', 'moderate', true);
+    addPin(map, 49.9000, 8.2000, 'Rheinhessen', 'Largest German region \u00b7 resurgent quality dry Riesling.', 'moderate');
+    addPin(map, 49.4744, 8.1722, 'Pfalz', 'Warmer \u00b7 sheltered by Haardt Mts \u00b7 ripe Riesling, Pinot Noir.', 'moderate', true);
+    addPin(map, 48.0000, 7.8000, 'Baden', 'WARMEST German region \u00b7 Sp\u00e4tburgunder heartland.', 'warm', true);
+    addPin(map, 49.8000, 9.9333, 'Franken', 'Continental \u00b7 Silvaner specialty in Bocksbeutel bottles.', 'moderate');
+  });
+
+  // 8. ITALY
+  defineRegion({
+    id: 'map-italy', title: '\ud83c\uddee\ud83c\uddf9 Italy \u2014 North to South: Cool Alpine to Hot Mediterranean',
+    subtitle: 'Three climate zones, three signature reds (Nebbiolo \u00b7 Sangiovese \u00b7 Aglianico)',
+    center: [42.5, 12.5], zoom: 6, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://winefolly.com/deep-dive/italian-wine-regions-map/" target="_blank">Wine Folly Italy</a> \u00b7 <a href="https://www.guildsomm.com/public_content/features/maps/b/w/italy" target="_blank">GuildSomm</a>',
+    keyTakeaway: 'Three signature reds for three climate zones. <strong>Nebbiolo</strong> needs continental + autumn fog of Piemonte. <strong>Sangiovese</strong> needs warmth of Tuscany. <strong>Aglianico</strong> can ONLY ripen in the hot south.'
+  }, function(map) {
+    addPin(map, 44.6042, 7.9522, 'Barolo', 'NEBBIOLO \u00b7 "King of wines" \u00b7 5-yr min aging.', 'moderate', true);
+    addPin(map, 44.7236, 8.0833, 'Barbaresco', 'NEBBIOLO \u00b7 slightly milder than Barolo.', 'moderate', true);
+    addPin(map, 44.9000, 8.2000, 'Asti', 'Moscato Bianco \u2192 sweet Asti DOCG sparkling.', 'moderate');
+    addPin(map, 45.4400, 11.2400, 'Soave', 'Garganega white \u00b7 volcanic Soave Classico = best.', 'moderate', true);
+    addPin(map, 45.5469, 10.8833, 'Valpolicella', 'Corvina-led \u00b7 also Amarone (dried grapes) + Recioto (sweet).', 'warm', true);
+    addPin(map, 46.4983, 11.3548, 'Alto Adige', 'Alpine cool \u00b7 premium Pinot Grigio, Lagrein.', 'cool', true);
+    addPin(map, 46.0667, 13.2333, 'Friuli (Collio)', 'Hilly NE \u00b7 top whites.', 'cool');
+    addPin(map, 43.4747, 11.3050, 'Chianti Classico', 'SANGIOVESE 80%+ \u00b7 "Gallo Nero" black rooster.', 'warm', true);
+    addPin(map, 43.0586, 11.4906, 'Brunello di Montalcino', '100% Sangiovese (Grosso) \u00b7 5-yr aging.', 'warm', true);
+    addPin(map, 43.1000, 11.7833, 'Vino Nobile di Montepulciano', 'Sangiovese (Prugnolo Gentile).', 'warm');
+    addPin(map, 43.2333, 10.6167, 'Bolgheri', 'Coast \u00b7 Super Tuscans \u00b7 Bordeaux varieties.', 'warm', true);
+    addPin(map, 41.0500, 14.7333, 'Taurasi (Campania)', 'AGLIANICO \u00b7 "Barolo of the south" \u00b7 volcanic.', 'hot', true);
+    addPin(map, 40.8536, 15.6261, 'Aglianico del Vulture', 'Volcanic \u00b7 Basilicata \u00b7 structured Aglianico.', 'hot');
+    addPin(map, 37.1500, 14.3833, 'Sicily \u2014 Nero d\'Avola', 'Hot Mediterranean \u00b7 ripe red.', 'hot');
+    addPin(map, 37.7510, 14.9930, 'Etna (Sicily)', 'VOLCANIC + ALTITUDE \u00b7 Nerello Mascalese.', 'moderate', true);
+  });
+
+  // 9. SPAIN
+  defineRegion({
+    id: 'map-spain', title: '\ud83c\uddea\ud83c\uddf8 Spain \u2014 Diversity Across the Iberian Peninsula',
+    subtitle: 'From cool Atlantic NW to hot inland plateau to Mediterranean coast',
+    center: [40.0, -4.0], zoom: 6, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://winefolly.com/deep-dive/spanish-wine-regions-map/" target="_blank">Wine Folly Spain</a> \u00b7 <a href="https://www.winesfromspain.com/wines-of-spain/" target="_blank">Wines from Spain</a>',
+    keyTakeaway: 'Massively varied. <strong>NW (Galicia)</strong> = cool Atlantic, Albari\u00f1o on granite. <strong>Central plateau</strong> = hot continental at altitude. <strong>Rioja & Ribera</strong> = moderate continental, Tempranillo with Crianza/Reserva/Gran Reserva oak aging.'
+  }, function(map) {
+    addPin(map, 42.5836, -8.7700, 'R\u00edas Baixas', 'COOL maritime \u00b7 Albari\u00f1o \u00b7 pergola training.', 'cool', true);
+    addPin(map, 42.4747, -7.0731, 'Bierzo', 'Menc\u00eda red \u00b7 slate soils.', 'moderate');
+    addPin(map, 42.4646, -2.4456, 'Rioja', 'Tempranillo + Garnacha \u00b7 Crianza\u2192Reserva\u2192Gran Reserva.', 'moderate', true);
+    addPin(map, 41.6206, -3.6917, 'Ribera del Duero', 'High altitude (~800m) \u00b7 powerful Tempranillo.', 'moderate', true);
+    addPin(map, 41.5167, -5.4000, 'Toro', 'Tempranillo (Tinta de Toro) \u00b7 extreme continental.', 'warm');
+    addPin(map, 41.3000, -4.8333, 'Rueda', 'Verdejo white \u00b7 Spain\'s answer to Sauvignon Blanc.', 'moderate');
+    addPin(map, 41.3833, 1.7000, 'Pened\u00e8s / Cava', 'Catalonia \u00b7 base wines for Cava.', 'warm', true);
+    addPin(map, 41.1700, 0.7700, 'Priorat', 'Slate "llicorella" \u00b7 old-vine Garnacha + Cari\u00f1ena.', 'warm', true);
+    addPin(map, 39.4500, -3.0000, 'La Mancha', 'Hot inland plateau \u00b7 huge bulk \u00b7 Air\u00e9n + Tempranillo.', 'hot', true);
+    addPin(map, 38.4833, -1.3333, 'Jumilla', 'Hot Levante \u00b7 old-vine Monastrell.', 'hot');
+    addPin(map, 36.6817, -6.1378, 'Jerez (Sherry)', 'Hot but cooled by Atlantic \u00b7 Albariza chalk.', 'hot', true);
+  });
+
+  // 10. PORTUGAL
+  defineRegion({
+    id: 'map-portugal', title: '\ud83c\uddf5\ud83c\uddf9 Portugal \u2014 Cool Atlantic to Hot Alentejo',
+    subtitle: 'Atlantic coast moderates west; mountains shelter the Douro inland',
+    center: [39.5, -8.5], zoom: 7, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.winesofportugal.com/en/discover-wines/regions-and-wines/" target="_blank">Wines of Portugal</a> \u00b7 <a href="https://winefolly.com/deep-dive/portugal-wine-regions-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: '<strong>Vinho Verde (NW)</strong> = picked early, low alcohol. <strong>Douro (inland)</strong> = hot continental sheltered by Serra do Mar\u00e3o; same grapes make both Port AND Douro DOC table wine. <strong>Alentejo (south)</strong> = hot Mediterranean inland.'
+  }, function(map) {
+    addPin(map, 41.5454, -8.4265, 'Vinho Verde', 'COOL maritime \u00b7 low alcohol (8-11%) \u00b7 slight spritz.', 'cool', true);
+    addPin(map, 41.1579, -7.5006, 'Douro / Port', 'HOT continental \u00b7 steep schist terraces \u00b7 5 main grapes for Port.', 'hot', true);
+    addPin(map, 41.1397, -8.6111, 'Porto/Vila Nova de Gaia', 'Where Port houses age the wine in lodges.', 'cool');
+    addPin(map, 40.6610, -7.9106, 'D\u00e3o', 'Granite + altitude \u00b7 elegant Touriga Nacional reds.', 'moderate', true);
+    addPin(map, 40.4506, -8.4406, 'Bairrada', 'Maritime \u00b7 Baga grape \u00b7 structured tannic reds + sparkling.', 'moderate');
+    addPin(map, 39.0500, -8.5500, 'Lisboa', 'Coastal influence \u00b7 varied styles.', 'warm');
+    addPin(map, 38.5667, -7.9167, 'Alentejo', 'HOT Mediterranean inland \u00b7 ripe fruit-forward reds.', 'hot', true);
+    addPin(map, 32.6333, -16.9000, 'Madeira (island)', 'Atlantic island \u00b7 fortified \u00b7 estufagem + extreme oxidation.', 'warm');
+  });
+
+  // 11. NAPA
+  defineRegion({
+    id: 'map-napa', title: '\ud83c\uddfa\ud83c\uddf8 Napa Valley \u2014 North Hot, South Cool',
+    subtitle: 'SF Bay fog cools the south. Calistoga in north is warmest. Mountain AVAs sit above the fog.',
+    center: [38.50, -122.40], zoom: 10, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://napavintners.com/napa_valley/maps.asp" target="_blank">Napa Vintners Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/california-wine-region-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'Napa is a 30-mile-long valley with massive climate variation. <strong>Carneros (south)</strong>: SF Bay fog \u2192 cool \u2192 Pinot Noir & Chardonnay. <strong>Calistoga (north)</strong>: above the fog \u2192 hot \u2192 power Cabernet. <strong>Mountain AVAs</strong>: cooler nights + more sun = structured, age-worthy wines.'
+  }, function(map) {
+    addPin(map, 38.5783, -122.5797, 'Calistoga', 'Hottest part of valley \u00b7 floor wines very ripe.', 'hot', true);
+    addPin(map, 38.5489, -122.4708, 'St. Helena', 'Heart of the valley \u00b7 classic Cab.', 'warm');
+    addPin(map, 38.4636, -122.4197, 'Rutherford', '"Rutherford dust" Cab signature \u00b7 benchland gravels.', 'warm', true);
+    addPin(map, 38.4378, -122.4019, 'Oakville', 'Iconic premium Cab (Opus, Mondavi, Screaming Eagle).', 'warm', true);
+    addPin(map, 38.4022, -122.3611, 'Stags Leap District', 'Cab with silky texture \u00b7 won 1976 Judgment of Paris.', 'warm', true);
+    addPin(map, 38.4014, -122.3611, 'Yountville', 'Mid-valley \u00b7 slightly cooler than Oakville.', 'warm');
+    addPin(map, 38.5783, -122.5333, 'Howell Mountain', 'E side mountain AVA \u00b7 above fog \u00b7 structured age-worthy Cab.', 'moderate', true);
+    addPin(map, 38.5667, -122.6500, 'Spring Mountain', 'W side mountain \u00b7 cooler \u00b7 refined Cab.', 'moderate');
+    addPin(map, 38.4333, -122.5667, 'Mount Veeder', 'W mountain \u00b7 volcanic soils \u00b7 concentrated reds.', 'moderate');
+    addPin(map, 38.4500, -122.3000, 'Atlas Peak', 'E mountain \u00b7 high elevation \u00b7 cool nights.', 'moderate');
+    addPin(map, 38.2500, -122.4000, 'Carneros', 'Coolest \u00b7 SF Bay fog \u00b7 Pinot Noir, Chardonnay, sparkling base.', 'cool', true);
+    addPin(map, 38.2975, -122.2869, 'Napa (city)', 'Southern gateway.', 'cool');
+  });
+
+  // 12. SONOMA
+  defineRegion({
+    id: 'map-sonoma', title: '\ud83c\uddfa\ud83c\uddf8 Sonoma County \u2014 Pacific Fog Penetrates Through Coastal Gaps',
+    subtitle: 'West & N of Napa. Pacific cooling reaches inland through the Petaluma Gap.',
+    center: [38.55, -122.85], zoom: 9, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://sonomawine.com/our-region/" target="_blank">Sonoma County Vintners</a> \u00b7 <a href="https://winefolly.com/deep-dive/sonoma-wine-region-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'Pacific fog penetrates inland through coastal gaps (most importantly, the <strong>Petaluma Gap</strong>). Coastal/RRV = cool \u2192 world-class Pinot Noir & Chardonnay. Inland (Alexander, Dry Creek) = warm \u2192 Cabernet & Zinfandel territory.'
+  }, function(map) {
+    addPin(map, 38.6717, -123.1158, 'Sonoma Coast', 'COOLEST \u00b7 windy cliffs \u00b7 extreme-site Pinot/Chard.', 'cool', true);
+    addPin(map, 38.5083, -122.8672, 'Russian River Valley', 'Cool \u00b7 Petaluma Gap fog \u00b7 world-class Pinot Noir & Chardonnay.', 'cool', true);
+    addPin(map, 38.6072, -122.8919, 'Dry Creek Valley', 'Old-vine Zinfandel heartland.', 'warm', true);
+    addPin(map, 38.7250, -122.8333, 'Alexander Valley', 'Warmer \u00b7 ripe Cabernet Sauvignon.', 'warm', true);
+    addPin(map, 38.4297, -122.4683, 'Carneros (Sonoma side)', 'Cool \u00b7 shared with Napa \u00b7 Pinot/Chard.', 'cool');
+    addPin(map, 38.2900, -122.4583, 'Petaluma Gap', 'Fog corridor \u00b7 cool Pinot/Chard/Syrah.', 'cool', true);
+    addPin(map, 38.3097, -122.4581, 'Sonoma (city/Valley)', 'Historic town \u00b7 warm valley.', 'warm');
+    addPin(map, 38.7533, -122.7444, 'Knights Valley', 'Warmer mountain valley \u00b7 Cab.', 'warm');
+  });
+
+  // 13. PNW
+  defineRegion({
+    id: 'map-pnw', title: '\ud83c\uddfa\ud83c\uddf8 Pacific Northwest \u2014 Cascade Mountains Divide Everything',
+    subtitle: 'West of Cascades = cool maritime (Oregon Pinot). East = arid continental (WA Cab/Syrah).',
+    center: [46.0, -120.5], zoom: 6, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.washingtonwine.org/discover/regions-and-avas" target="_blank">WA Wine</a> \u00b7 <a href="https://industry.oregonwine.org/resources/maps/" target="_blank">OR Wine</a>',
+    keyTakeaway: 'The Cascade Mountains are the entire story. <strong>West (Oregon Willamette)</strong>: maritime, ample rain, cool \u2192 Burgundian Pinot Noir. <strong>East (WA Columbia)</strong>: arid (irrigation required) but at 46\u00b0N \u2192 long days + cool nights = ripe but fresh Cab/Syrah/Riesling. Sandy soils \u2192 own-rooted vines.'
+  }, function(map) {
+    addPin(map, 45.2333, -123.0833, 'Willamette Valley (OR)', 'Cool maritime W of Cascades \u00b7 Pinot Noir kingdom \u00b7 volcanic Jory.', 'cool', true);
+    addPin(map, 45.5152, -122.6784, 'Portland (OR)', 'Wine country gateway.', 'cool');
+    addPin(map, 45.4000, -123.0500, 'Dundee Hills (OR)', 'Top Willamette sub-AVA \u00b7 iron-rich Jory.', 'cool', true);
+    addPin(map, 46.5500, -120.5000, 'Yakima Valley (WA)', 'Largest WA AVA \u00b7 diverse \u00b7 Cab, Merlot, Syrah, Riesling.', 'warm', true);
+    addPin(map, 46.2500, -119.7500, 'Columbia Valley (WA)', 'Encompassing super-AVA \u00b7 most WA wine here.', 'warm');
+    addPin(map, 46.0646, -118.3430, 'Walla Walla (WA)', 'High-end Cab & Syrah \u00b7 stretches into OR.', 'warm', true);
+    addPin(map, 46.2667, -119.4500, 'Red Mountain (WA)', 'Tiny \u00b7 warmest WA AVA \u00b7 structured Cab/Syrah.', 'hot', true);
+  });
+
+  // 14. CHILE
+  defineRegion({
+    id: 'map-chile', title: '\ud83c\udde8\ud83c\uddf1 Chile \u2014 Costa, Entre Cordilleras, Andes',
+    subtitle: 'Long thin country between Pacific (cooled by Humboldt) and Andes mountains',
+    center: [-34.0, -71.0], zoom: 6, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.winesofchile.org/en/regions/" target="_blank">Wines of Chile Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/chilean-wine-regions/" target="_blank">Wine Folly</a>',
+    keyTakeaway: '<strong>Three climate sub-zones</strong> are now added to DO labels: Costa (coastal), Entre Cordilleras (central valley), Andes (foothills). Same valley name can produce very different wines depending on sub-zone. Phylloxera-free \u2192 vines are own-rooted.'
+  }, function(map) {
+    addPin(map, -29.9000, -70.9000, 'Elqui Valley', 'Far north \u00b7 altitude \u00b7 Syrah, Sauvignon Blanc.', 'warm');
+    addPin(map, -30.6000, -71.2500, 'Limar\u00ed', 'Coastal \u00b7 cool \u00b7 premium Chardonnay & Syrah.', 'cool');
+    addPin(map, -32.8500, -71.2500, 'Aconcagua Valley', 'Hot inland; coastal sub-zone for cool styles.', 'warm');
+    addPin(map, -33.3147, -71.4081, 'Casablanca Valley', 'COOL coastal \u00b7 cooled by morning Pacific fog.', 'cool', true);
+    addPin(map, -33.5833, -71.6167, 'San Antonio / Leyda', 'Cool coastal \u00b7 cutting-edge Pinot Noir & Sauvignon Blanc.', 'cool', true);
+    addPin(map, -33.6167, -70.7167, 'Maipo Valley', 'Near Santiago \u00b7 warm \u00b7 Cabernet Sauvignon home.', 'warm', true);
+    addPin(map, -34.1500, -70.7000, 'Cachapoal', 'Carmen\u00e8re & Cabernet on alluvial soils.', 'warm');
+    addPin(map, -34.5500, -71.2500, 'Colchagua', 'Premium reds \u00b7 Apalta, Los Lingues sub-areas.', 'warm', true);
+    addPin(map, -34.9833, -71.2333, 'Curic\u00f3', 'Mid-Central Valley \u00b7 varied.', 'moderate');
+    addPin(map, -35.7167, -71.6500, 'Maule', 'Old vine Carignan & Pa\u00eds \u00b7 revival region.', 'moderate', true);
+    addPin(map, -36.7167, -72.6333, 'Itata', 'Far south \u00b7 cool \u00b7 old Pa\u00eds & Cinsault.', 'cool');
+    addPin(map, -33.4569, -70.6483, 'Santiago', 'Capital city \u00b7 gateway to Maipo.', 'warm');
+  });
+
+  // 15. ARGENTINA
+  defineRegion({
+    id: 'map-argentina', title: '\ud83c\udde6\ud83c\uddf7 Argentina \u2014 Mendoza Saved by Altitude',
+    subtitle: 'Desert at 30\u00b0S \u2014 would be far too hot WITHOUT the elevation. Andes provide snowmelt.',
+    center: [-34.0, -68.5], zoom: 6, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.winesofargentina.org/en/regions" target="_blank">Wines of Argentina</a> \u00b7 <a href="https://winefolly.com/deep-dive/wines-of-argentina/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'Mendoza is a desert at 30\u00b0S \u2014 would be FAR too hot at sea level. <strong>ALTITUDE is everything</strong>: 700m to 3,000m+. Higher elevation = cooler nights = preserved acidity = bigger diurnal range = more elegance. Uco Valley (1,000-1,500m) makes most refined Malbec.'
+  }, function(map) {
+    addPin(map, -25.9333, -65.7167, 'Cafayate (Salta)', 'Up to 3,000m elevation! \u00b7 Torront\u00e9s white + Malbec.', 'hot', true);
+    addPin(map, -31.5375, -68.5364, 'San Juan', 'Hot \u00b7 2nd largest producer \u00b7 Syrah, Bonarda.', 'hot');
+    addPin(map, -32.8908, -68.8272, 'Mendoza (city)', 'Wine capital of South America.', 'warm');
+    addPin(map, -32.9000, -68.7833, 'Maip\u00fa', '~700m \u00b7 warmer \u00b7 classic Malbec & Bonarda.', 'warm', true);
+    addPin(map, -33.0333, -68.8833, 'Luj\u00e1n de Cuyo', '~1,000m \u00b7 "First Zone" \u00b7 top Malbec.', 'moderate', true);
+    addPin(map, -33.6833, -69.1167, 'Uco Valley', '1,000-1,500m \u00b7 COOLEST + most elegant Malbec.', 'cool', true);
+    addPin(map, -39.0167, -67.5833, 'Patagonia (R\u00edo Negro/Neuqu\u00e9n)', 'Far south \u00b7 cool continental \u00b7 Pinot Noir & Malbec.', 'cool', true);
+  });
+
+  // 16. SOUTH AFRICA
+  defineRegion({
+    id: 'map-southafrica', title: '\ud83c\uddff\ud83c\udde6 South Africa \u2014 Cooled by the Benguela Current',
+    subtitle: 'SW tip of Africa. Cold Atlantic current cools coast even at low latitude.',
+    center: [-33.9, 19.0], zoom: 8, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.wosa.co.za/Wine-Tourism/Wine-Routes/" target="_blank">WoSA Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/south-africa-wine-region-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'Mediterranean climate at low latitude (34\u00b0S) but dramatically cooled by the cold <strong>Benguela current</strong> from Antarctica + the strong <strong>Cape Doctor wind</strong>. Coastal regions = cool maritime, PN & SB. Inland Stellenbosch = warmer, Cab & Pinotage. Swartland = old bush vine Chenin.'
+  }, function(map) {
+    addPin(map, -33.5550, 18.7167, 'Swartland', 'Warm dry \u00b7 old-vine Chenin \u00b7 Rh\u00f4ne blends \u00b7 natural-leaning.', 'warm', true);
+    addPin(map, -33.7333, 18.9667, 'Paarl', 'Inland warm \u00b7 diverse styles.', 'warm');
+    addPin(map, -33.9333, 18.8667, 'Stellenbosch', 'Premium Cab + Pinotage \u00b7 varied terroir.', 'warm', true);
+    addPin(map, -34.0181, 18.4233, 'Constantia', 'Cool \u00b7 sea breeze \u00b7 historic Vin de Constance sweet wine.', 'cool', true);
+    addPin(map, -34.1833, 19.0167, 'Elgin', 'Cool altitude \u00b7 premium Sauvignon Blanc & Pinot Noir.', 'cool', true);
+    addPin(map, -34.4167, 19.2333, 'Walker Bay / Hemel-en-Aarde', 'Cool coastal \u00b7 premium PN & Chard.', 'cool', true);
+    addPin(map, -33.8000, 19.9000, 'Robertson', 'Warm inland \u00b7 limestone \u00b7 premium Chard & sparkling.', 'warm');
+    addPin(map, -34.5833, 19.7500, 'Elim', 'Far southern coast \u00b7 cool maritime \u00b7 Sauvignon Blanc.', 'cool');
+    addPin(map, -33.9249, 18.4241, 'Cape Town', 'Wine country gateway \u00b7 Cape Doctor wind starts here.', 'cool');
+  });
+
+  // 17. AUSTRALIA
+  defineRegion({
+    id: 'map-australia', title: '\ud83c\udde6\ud83c\uddfa Australia \u2014 Massive Variation by State + Altitude',
+    subtitle: 'Same state can have HOT (Barossa floor) and COOL (Eden Valley up the hill) regions.',
+    center: [-35.0, 138.5], zoom: 5, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.wineaustralia.com/discover-australian-wine/wine-regions" target="_blank">Wine Australia Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/wines-of-australia/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'Massive variation. Same state = very different climates: <strong>Barossa floor</strong> hot \u2192 Shiraz; <strong>Eden Valley</strong> just up the hill at altitude is cool \u2192 world-class Riesling. <strong>Margaret River</strong>: maritime \u2192 Bordeaux + Chardonnay. <strong>Tasmania</strong> = cool sparkling base. <strong>Hunter</strong>: humid harvest \u2192 famous low-alc Sem.'
+  }, function(map) {
+    addPin(map, -34.5167, 138.9667, 'Barossa Valley', 'HOT \u00b7 old-vine Shiraz \u00b7 powerful, rich.', 'hot', true);
+    addPin(map, -34.5833, 139.0500, 'Eden Valley', 'COOL altitude (~400m) just E of Barossa \u00b7 world-class dry Riesling.', 'cool', true);
+    addPin(map, -33.8333, 138.6167, 'Clare Valley', 'Continental \u00b7 dry Riesling under screw-cap pioneer.', 'moderate', true);
+    addPin(map, -34.9285, 138.7800, 'Adelaide Hills', 'Cool altitude \u00b7 SB, Chardonnay, sparkling base.', 'cool', true);
+    addPin(map, -35.2167, 138.5500, 'McLaren Vale', 'Maritime warm \u00b7 old-vine Shiraz & Grenache.', 'warm', true);
+    addPin(map, -37.2833, 140.8333, 'Coonawarra', 'Famous TERRA ROSSA over limestone \u00b7 Cabernet Sauvignon.', 'moderate', true);
+    addPin(map, -36.9167, 144.7000, 'Heathcote', 'Red Cambrian soils \u00b7 top Shiraz.', 'warm');
+    addPin(map, -37.6500, 145.4167, 'Yarra Valley', 'Cool \u00b7 Pinot Noir, Chardonnay, sparkling base.', 'cool', true);
+    addPin(map, -38.3500, 145.0167, 'Mornington Peninsula', 'Cool maritime \u00b7 Pinot Noir & Pinot Gris.', 'cool');
+    addPin(map, -32.7833, 151.2833, 'Hunter Valley (NSW)', 'Humid harvest \u2192 famous low-alc, ageworthy S\u00e9millon.', 'warm', true);
+    addPin(map, -33.9500, 115.0833, 'Margaret River (WA)', 'Maritime \u00b7 Bordeaux + Chardonnay.', 'moderate', true);
+    addPin(map, -34.5000, 117.5833, 'Great Southern (WA)', 'Cool \u00b7 Riesling & Pinot.', 'cool');
+    addPin(map, -42.0167, 147.2833, 'Tasmania', 'Cool \u00b7 top sparkling base + Pinot Noir & Chard.', 'cool', true);
+  });
+
+  // 18. NEW ZEALAND
+  defineRegion({
+    id: 'map-newzealand', title: '\ud83c\uddf3\ud83c\uddff New Zealand \u2014 Cool Maritime + Central Otago Outlier',
+    subtitle: 'Marlborough = SB capital. Central Otago = NZ\'s only continental region (premium Pinot).',
+    center: [-41.5, 173.0], zoom: 6, tall: true, layer: 'topo',
+    externalLinks: '<a href="https://www.nzwine.com/en/regions/" target="_blank">NZ Wine Official</a> \u00b7 <a href="https://winefolly.com/deep-dive/new-zealand-wine-regions-map/" target="_blank">Wine Folly</a>',
+    keyTakeaway: 'Mostly cool maritime. <strong>Marlborough</strong>: cool nights preserve aromatic thiols + intense sunshine + huge diurnal range + alluvial gravels. <strong>Central Otago</strong>: NZ\'s only continental region, schist + altitude = premium Pinot Noir. <strong>Hawke\'s Bay</strong>: Gimblett Gravels for Bordeaux blends + Syrah.'
+  }, function(map) {
+    addPin(map, -36.8485, 174.7633, 'Auckland', 'Wine country gateway.', 'moderate');
+    addPin(map, -38.6533, 178.0042, 'Gisborne', 'Warm \u00b7 Chardonnay specialty.', 'warm');
+    addPin(map, -39.6394, 176.8475, 'Hawke\'s Bay', 'Warmer \u00b7 Gimblett Gravels for Bordeaux blends + Syrah.', 'warm', true);
+    addPin(map, -41.2200, 175.4833, 'Martinborough/Wairarapa', 'Premium Pinot Noir \u00b7 windy \u00b7 stony soils.', 'moderate', true);
+    addPin(map, -41.5167, 173.9500, 'Marlborough', 'Sauvignon Blanc capital \u00b7 cool nights preserve thiols.', 'cool', true);
+    addPin(map, -41.2706, 173.2840, 'Nelson', 'Cool \u00b7 varied small-scale.', 'cool');
+    addPin(map, -43.5320, 172.6362, 'Canterbury (Waipara)', 'Cool \u00b7 Pinot, Riesling.', 'cool');
+    addPin(map, -44.9833, 169.2833, 'Central Otago', 'NZ\'s only CONTINENTAL region \u00b7 schist + altitude \u00b7 premium Pinot Noir.', 'cool', true);
+  });
+
+  // 19. JEREZ
+  defineRegion({
+    id: 'map-jerez', title: '\ud83c\uddea\ud83c\uddf8 Jerez \u2014 The Sherry Triangle',
+    subtitle: 'Hot southern Spain but cooled by Atlantic poniente winds. Albariza chalk soil is the secret.',
+    center: [36.65, -6.20], zoom: 11, layer: 'topo',
+    externalLinks: '<a href="https://www.sherry.wine/sherry-region" target="_blank">Consejo Regulador del Jerez</a>',
+    keyTakeaway: '<strong>Albariza</strong> is everything: pale chalky soil with sponge-like water retention. Absorbs winter rainfall and slowly releases it through the dry summer. Pale color reflects sun. The cooling Atlantic <strong>poniente wind</strong> brings humidity (good for flor!) and lowers temperatures.'
+  }, function(map) {
+    addPin(map, 36.6817, -6.1378, 'Jerez de la Frontera', 'Heart of the Sherry Triangle \u00b7 Fino + all styles aged here.', 'hot', true);
+    addPin(map, 36.7700, -6.3500, 'Sanl\u00facar de Barrameda', 'Coastal \u00b7 sea breeze creates MANZANILLA.', 'cool', true);
+    addPin(map, 36.5933, -6.2333, 'El Puerto de Santa Mar\u00eda', 'Coastal \u00b7 Fino-style with maritime influence.', 'cool', true);
+    addPin(map, 36.5167, -6.2833, 'C\u00e1diz', 'Atlantic port city.', 'cool');
+  });
+
+  // 20. MOSEL
+  defineRegion({
+    id: 'map-mosel', title: '\ud83c\udde9\ud83c\uddea Mosel \u2014 South-Facing Slate Slopes',
+    subtitle: 'A close-up of how site selection rescues Riesling at this cool latitude (~50\u00b0N)',
+    center: [49.95, 7.05], zoom: 11, tall: true, layer: 'sat',
+    externalLinks: '<a href="https://www.weinland-mosel.de/en/" target="_blank">Mosel Wine Region</a> \u00b7 <a href="https://winefolly.com/deep-dive/german-wine-regions-map/" target="_blank">Wine Folly Germany</a>',
+    keyTakeaway: '<strong>WHY this region works:</strong> south-facing slope (max sun) + steep gradient (cold air drainage = frost protection) + dark slate (heat sink, day\u2192night warmth) + river below (moderates temperature, reflects light). Without ALL FOUR, no quality wine at this cool latitude. (Satellite view shows the dramatic river bends + slope orientations.)'
+  }, function(map) {
+    addPin(map, 49.9000, 7.0833, 'Bernkastel-Kues', 'Famous Doctor vineyard above town \u00b7 steep south face.', 'cool', true);
+    addPin(map, 49.9167, 7.0167, 'Wehlen', 'J.J. Pr\u00fcm \u00b7 Sundial (Sonnenuhr) vineyard.', 'cool', true);
+    addPin(map, 49.9183, 6.9233, 'Piesport', 'Goldtr\u00f6pfchen vineyard on river bend \u00b7 pure south-facing.', 'cool', true);
+    addPin(map, 49.7464, 6.6383, 'Trier (city)', 'Mosel wine capital \u00b7 Roman heritage.', 'cool');
+    addPin(map, 49.9500, 7.1500, 'Brauneberg', 'Juffer vineyard \u00b7 classic blue slate.', 'cool');
+    addPin(map, 49.9500, 7.0167, 'Graach', 'Domprobst vineyard.', 'cool');
+  });
+
+  // RENDER
+  document.getElementById('sec-maps').innerHTML =
+    '<h1>\ud83d\uddfa Visual Region Maps</h1>' +
+    '<p class="muted">Real interactive geographic maps for the world\'s key wine regions. <strong>Click a pin</strong> for context. <strong>Click the map</strong> to enable scroll-zoom; pan and zoom freely.</p>' +
+    '<div class="tip">For SWA Q1, examiners often show a map and ask you to identify a region or explain its climate features. <strong>Triangle markers (\u25b2)</strong> denote top-tier or premium sites; <strong>circles (\u25cf)</strong> denote other notable sub-regions. Color = climate (cool/moderate/warm/hot).</div>' +
+    blocks.map(function(b){ return b.html; }).join('');
+
+  setTimeout(function() {
+    blocks.forEach(function(b) {
+      try { b.init(); } catch(e) { console.error('Map init failed:', e); }
+    });
+  }, 100);
+
+  document.querySelectorAll('[data-tab="maps"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      setTimeout(function() {
+        document.querySelectorAll('.map-leaflet').forEach(function(el) {
+          if (el._leaflet_map && el._leaflet_map.invalidateSize) {
+            el._leaflet_map.invalidateSize();
+          }
+        });
+      }, 150);
+    });
+  });
 })();
 </script>
 
