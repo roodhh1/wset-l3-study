@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local progress backups (in case you ever export to this folder)
+*.json.bak
+progress-*.json
+
+# Temp files
+*.tmp
+*.log
