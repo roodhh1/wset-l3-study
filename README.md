@@ -69,7 +69,7 @@ Maps use OpenStreetMap and Esri tiles (free, open). Each region links out to aut
 
 ## Author
 
-**Rodrigo Hernandez** · [LinkedIn](https://www.linkedin.com/in/rodrigohdez01/) · Instagram [@roodhh](https://instagram.com/roodhh) · [rohernandezh1@gmail.com](mailto:rohernandezh1@gmail.com)
+**Rodrigo Hernandez** · [LinkedIn](https://www.linkedin.com/in/rodrigohdez01/) · Instagram [@roodhh](https://instagram.com/roodhh)
 
 Built for personal study. Use it, fork it, share it. Good luck on your exam! 🍷
 
