@@ -113,7 +113,7 @@ Key decisions made during the build:
    - V2: redesigned SVGs with bigger labels → still couldn't compete with real cartography
    - V3 (final): Leaflet + real basemaps + custom shape/color markers
 
-3. **Footer email removed** post-publication because the tool is shared publicly. Name, LinkedIn, Instagram retained.
+3. **Footer email removed** post-publication because the tool is shared publicly; later (Oct 2026) re-added as a "Say bonjour" mailto link in a creator colophon on both pages, with the address assembled in JS (`data-mail`) so it never appears in the HTML.
 
 4. **Repo published as public** at github.com/roodhh1/wset-l3-study with GitHub Pages on `main` branch root. URL: https://roodhh1.github.io/wset-l3-study/
 
