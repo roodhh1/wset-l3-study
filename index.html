@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Rodrigo Hernandez">
 <title>WSET Level 3 Study Tool — Exam 9/20</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -119,6 +120,19 @@ nav.tabs {
 .tab.active { color: var(--burgundy); border-bottom-color: var(--gold); font-weight: 600; }
 .tab-link { display: inline-block; padding: 0.85rem 1.1rem; border-bottom: 3px solid transparent; color: var(--ink-soft); font-size: 0.92rem; font-weight: 500; text-decoration: none; transition: all 0.15s; }
 .tab-link:hover { color: var(--burgundy); background: var(--cream); }
+/* Colophon / creator credit */
+.colophon { text-align: center; padding: 2.5rem 2rem 2rem; margin-top: 3rem; color: var(--ink-soft); background: var(--cream); border-top: 1px solid var(--line); font-size: 0.9rem; }
+.sig { display: inline-flex; align-items: center; gap: 0.9rem; text-align: left; }
+.seal { flex: none; width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--burgundy); color: var(--gold); font-family: Georgia, serif; font-style: italic; font-weight: 700; font-size: 1.05rem; letter-spacing: 0.02em; box-shadow: 0 0 0 2px var(--cream), 0 0 0 3.5px var(--gold); transform: rotate(-8deg); }
+.sig-name { font-family: Georgia, serif; font-style: italic; font-weight: 700; font-size: 1.05rem; color: var(--burgundy); }
+.sig-sub { font-size: 0.82rem; }
+.sig-links { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 1.1rem 0 0.9rem; }
+.sig-links a { color: var(--burgundy); text-decoration: none; font-weight: 600; font-size: 0.85rem; padding: 0.35rem 0.9rem; border: 1px solid var(--gold); border-radius: 999px; }
+.sig-links a:hover { background: var(--burgundy); color: var(--paper); border-color: var(--burgundy); }
+.sig-fine { font-size: 0.78rem; opacity: 0.8; line-height: 1.6; }
+[data-theme="dark"] .sig-name, [data-theme="dark"] .sig-links a { color: var(--gold); }
+[data-theme="dark"] .sig-links a:hover { color: var(--paper); }
+
 
 /* ===== Main content ===== */
 main {
@@ -395,24 +409,22 @@ details .details-body { padding: 0 1rem 1rem; border-top: 1px solid var(--line);
   <section id="sec-extras" class="section"></section>
 </main>
 
-<footer style="text-align:center; padding:2.5rem 2rem; color:var(--ink-soft); font-size:0.9rem; border-top:1px solid var(--line); margin-top:3rem; background: var(--cream);">
-  <div style="font-size: 1rem; color: var(--burgundy); font-family: Georgia, serif; font-weight: 700; margin-bottom: 0.4rem;">
-    🍷 Crafted by Rodrigo Hernandez
+<footer class="colophon">
+  <div class="sig">
+    <span class="seal" aria-hidden="true">RH</span>
+    <div class="sig-text">
+      <div class="sig-name">Conçu &amp; créé par Rodrigo Hernandez</div>
+      <div class="sig-sub">Personal WSET Level 3 study companion · © 2026</div>
+    </div>
   </div>
-  <div style="margin-bottom: 0.75rem;">
-    Personal WSET Level 3 study companion · Exam: Sept 20, 2026 · Napa Valley Wine Academy
-  </div>
-  <div style="display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0;">
-    <a href="https://www.linkedin.com/in/rodrigohdez01/" target="_blank" rel="noopener" style="color: var(--burgundy); text-decoration: none; font-weight: 600;">
-      💼 LinkedIn: rodrigohdez01
-    </a>
-    <a href="https://instagram.com/roodhh" target="_blank" rel="noopener" style="color: var(--burgundy); text-decoration: none; font-weight: 600;">
-      📸 Instagram: @roodhh
-    </a>
-  </div>
-  <div style="font-size: 0.78rem; color: var(--ink-soft); margin-top: 1rem; opacity: 0.8;">
+  <nav class="sig-links" aria-label="Contact the creator">
+    <a data-mail="WSET L3 Study Tool" href="#">✉ Say bonjour</a>
+    <a href="https://www.linkedin.com/in/rodrigohdez01/" target="_blank" rel="noopener">LinkedIn</a>
+    <a href="https://instagram.com/roodhh" target="_blank" rel="noopener">Instagram @roodhh</a>
+  </nav>
+  <div class="sig-fine">
     All progress saved locally in this browser. Use Export/Import to move between machines.<br>
-    Made with ☕, 🍇, and a healthy fear of the SWA section.
+    Free to use and share under the MIT licence — a credit is appreciated. Made with ☕, 🍇, and a healthy fear of the SWA section.
   </div>
 </footer>
 
@@ -459,6 +471,11 @@ function importProgress(event) {
   };
   reader.readAsText(file);
 }
+
+// Creator email (assembled at runtime to keep it away from scrapers)
+document.querySelectorAll('[data-mail]').forEach(function (a) {
+  a.href = 'mailto:' + ['rohernandezh1', 'gmail.com'].join('@') + '?subject=' + encodeURIComponent(a.dataset.mail);
+});
 
 // Tabs
 document.querySelectorAll('.tab').forEach(t => {

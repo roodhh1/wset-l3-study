@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Rodrigo Hernandez">
 <title>L'Arbre des Cépages — WSET L3 Grape Family Tree</title>
 <meta name="description" content="An interactive DNA family tree of the WSET Level 3 grape varieties: who crossed with whom, siblings, mutations and synonyms.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -296,7 +297,23 @@ main { max-width: 1600px; margin: 0 auto; padding: 0 24px 64px; }
 .scrim { position: fixed; inset: 0; z-index: 70; background: rgba(20, 15, 30, 0.25); display: none; }
 .scrim.open { display: block; }
 
-footer { max-width: 1600px; margin: 0 auto; padding: 24px; font-size: 13px; color: var(--muted); border-top: 2px solid var(--ink); }
+footer { max-width: 1600px; margin: 0 auto; padding: 28px 24px 32px; font-size: 13px; color: var(--muted); border-top: 2px solid var(--ink); }
+footer .colophon { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: var(--ink); }
+.seal {
+  flex: none; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--on-accent); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--hard);
+  font-family: 'Caveat', cursive; font-size: 24px; font-weight: 700; transform: rotate(-8deg);
+}
+.sig-name { font-family: 'Caveat', cursive; font-size: 26px; font-weight: 700; line-height: 1; }
+.sig-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.sig-links { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.sig-links a {
+  height: 36px; padding: 0 14px; display: inline-flex; align-items: center; border: 2px solid var(--ink); border-radius: 18px;
+  font-size: 13px; font-weight: 700; text-decoration: none; background: var(--surface); box-shadow: 2px 2px 0 var(--hard);
+}
+.sig-links a:hover { background: var(--ink); color: var(--paper); }
+footer .fine { margin: 18px 0 0; line-height: 1.55; }
+@media (max-width: 720px) { .sig-links { margin-left: 0; } }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 720px) {
   .top-inner { padding: 8px 14px; gap: 8px; }
@@ -340,7 +357,19 @@ footer { max-width: 1600px; margin: 0 auto; padding: 24px; font-size: 13px; colo
 <main id="views"></main>
 
 <footer>
-  Parentages from published DNA studies, as compiled in Robinson, Harding &amp; Vouillamoz, <i>Wine Grapes</i> (2012), and later papers (e.g. Tempranillo, 2012). Dashed links mean DNA proves a parent–child relationship but not which way round. Part of the <a href="index.html">WSET L3 Study Tool</a>.
+  <div class="colophon">
+    <span class="seal" aria-hidden="true">RH</span>
+    <div class="sig-text">
+      <div class="sig-name">Conçu &amp; illustré par Rodrigo Hernandez</div>
+      <div class="sig-sub">An original study poster for the WSET Level 3 · © 2026</div>
+    </div>
+    <nav class="sig-links" aria-label="Contact the creator">
+      <a data-mail="L'Arbre des Cépages" href="#">✉ Say bonjour</a>
+      <a href="https://www.linkedin.com/in/rodrigohdez01/" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="https://instagram.com/roodhh" target="_blank" rel="noopener">@roodhh</a>
+    </nav>
+  </div>
+  <p class="fine">Parentages from published DNA studies, as compiled in Robinson, Harding &amp; Vouillamoz, <i>Wine Grapes</i> (2012), and later papers (e.g. Tempranillo, 2012). Dashed links mean DNA proves a parent–child relationship but not which way round. Spotted a mistake? Say bonjour. Part of the <a href="index.html">WSET L3 Study Tool</a> · free to share under the MIT licence, credit appreciated.</p>
 </footer>
 
 <div class="scrim" id="scrim"></div>
@@ -1108,6 +1137,11 @@ function renderQuiz(f, v) {
   }
   next();
 }
+
+/* creator email, assembled at runtime to keep it away from scrapers */
+document.querySelectorAll("[data-mail]").forEach(function (a) {
+  a.href = "mailto:" + ["rohernandezh1", "gmail.com"].join("@") + "?subject=" + encodeURIComponent(a.dataset.mail);
+});
 
 /* =========================================================
    SEARCH + THEME + BOOT
