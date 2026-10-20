@@ -117,6 +117,8 @@ nav.tabs {
 }
 .tab:hover { color: var(--burgundy); background: var(--cream); }
 .tab.active { color: var(--burgundy); border-bottom-color: var(--gold); font-weight: 600; }
+.tab-link { display: inline-block; padding: 0.85rem 1.1rem; border-bottom: 3px solid transparent; color: var(--ink-soft); font-size: 0.92rem; font-weight: 500; text-decoration: none; transition: all 0.15s; }
+.tab-link:hover { color: var(--burgundy); background: var(--cream); }
 
 /* ===== Main content ===== */
 main {
@@ -373,6 +375,7 @@ details .details-body { padding: 0 1rem 1rem; border-top: 1px solid var(--line);
     <button class="tab" data-tab="flash">🃏 Flashcards</button>
     <button class="tab" data-tab="mock">📝 Mock Questions</button>
     <button class="tab" data-tab="extras">⭐ Extras & Cram</button>
+    <a class="tab-link" href="family-tree.html" title="Interactive DNA family tree of the L3 grapes">🌳 Grape Family Tree</a>
   </div>
 </nav>
 

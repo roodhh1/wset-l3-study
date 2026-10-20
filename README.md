@@ -10,7 +10,7 @@ A self-contained, single-file HTML study companion for the **WSET Level 3 Award 
 
 ## What's inside
 
-12 sections accessible from the top nav:
+12 sections accessible from the top nav, plus a linked Grape Family Tree page:
 
 | Section | What it covers |
 |---|---|
@@ -26,6 +26,7 @@ A self-contained, single-file HTML study companion for the **WSET Level 3 Award 
 | 🃏 **Flashcards** | 350+ cards across 10 decks (spaced repetition) |
 | 📝 **Mock Questions** | 200+ MCQs (50 official + 150+ original) + SWAs with model answers |
 | ⭐ **Extras** | 7 deadly mistakes, decision trees, food-pairing matrix, cram sheet |
+| 🌳 **Grape Family Tree** | [`family-tree.html`](https://roodhh1.github.io/wset-l3-study/family-tree.html) — interactive DNA genealogy of the L3 grapes: parents, siblings, mutations, synonyms, plus a parentage quiz |
 
 ## How to use it
 
