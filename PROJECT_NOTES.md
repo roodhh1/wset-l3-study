@@ -117,6 +117,15 @@ Key decisions made during the build:
 
 4. **Repo published as public** at github.com/roodhh1/wset-l3-study with GitHub Pages on `main` branch root. URL: https://roodhh1.github.io/wset-l3-study/
 
+## Verve By the Glass library (`/btg/`)
+
+Live at https://roodhh1.github.io/wset-l3-study/btg/ — Verve Wine SF's weekly by-the-glass pours as WSET L3 SAT study cards, shared with the Verve team.
+
+- `btg/index.html` renders everything; data lives in `btg/weeks/`.
+- One JSON file per week, named `wYYYYMMDD.json` (the Monday/start of the week), with `weekOf`, `label`, `short`, `wines[]` and `lineup`. Copy an existing week for the shape.
+- Add each new week's id to the front of `btg/weeks/index.json`. Never edit or delete past weeks: the page is meant to be a running library.
+- Wine `type` must be `white`, `rose` or `red` (drives the Library filter). `sat` scale values are 1-based indexes into the WSET scales (alcohol has 3 levels, the others 5).
+
 ## Pending / nice-to-haves
 
 If you want to keep iterating, candidates:
