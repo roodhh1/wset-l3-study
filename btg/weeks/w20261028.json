@@ -1,0 +1,444 @@
+{
+  "label": "Week of Oct 28",
+  "lineup": {
+    "blocks": [
+      {
+        "items": [
+          "Nossa Calcário → Palombare → Rosato → Hautes-Côtes.",
+          "The Bical is lighter in alcohol, so it goes first; the 14% Verdicchio would make it seem thin if tasted after.",
+          "Rosé bridges into the red."
+        ],
+        "title": "Tasting order for a flight"
+      },
+      {
+        "text": "The two whites are a perfect pair to compare: same high acidity, but 12% vs 14% alcohol and lees/MLF texture vs pure steel fruit. Taste them side by side and practise calling alcohol and body.",
+        "title": "Blind-tasting contrast"
+      }
+    ],
+    "rows": [
+      [
+        "Nossa Calcário Bical",
+        "$19",
+        "12%",
+        "High",
+        "Medium",
+        "Large barrels, full MLF",
+        "10–12°C / 50–54°F",
+        "White Burgundy, Chenin, Chablis fans"
+      ],
+      [
+        "Palombare Verdicchio",
+        "$12",
+        "14%",
+        "High",
+        "Medium(+)",
+        "None",
+        "8–10°C / 46–50°F",
+        "Albariño, Chablis, richer Italian whites"
+      ],
+      [
+        "Cuomo Rosato",
+        "$16",
+        "13%",
+        "Medium(+)",
+        "Medium",
+        "None",
+        "8–10°C / 46–50°F",
+        "Rosé drinkers wanting more flavour"
+      ],
+      [
+        "Guérin Hautes-Côtes",
+        "$14",
+        "13%",
+        "High",
+        "Medium(−)",
+        "Little / none",
+        "12–14°C / 54–57°F",
+        "Anyone wanting a light, food-friendly red"
+      ]
+    ],
+    "sub": "Two serious whites, a savoury rosé and a light red. The Verdicchio at $12 is the value pick."
+  },
+  "short": "Oct 28",
+  "weekOf": "2026-10-28",
+  "wines": [
+    {
+      "concl": "<b>Very good, possibly outstanding.</b> High alcohol and Medium(+) body are balanced by high acidity; old-vine concentration gives intensity; almond bitterness and early development add complexity and length.",
+      "exam": [
+        "Classico = the historic core zone. Superiore = lower yields and higher minimum alcohol.",
+        "Riserva is the DOCG step up: Castelli di Jesi Verdicchio Riserva DOCG.",
+        "Alcohol on the SAT has only three levels: Low (under 11%), Medium (11–13.9%), High (14%+)."
+      ],
+      "factors": [
+        [
+          "Site",
+          "A single vineyard in Contrada Palombare, on the western side of the Castelli di Jesi zone. It was Campanelli's first-ever label."
+        ],
+        [
+          "Climate",
+          "Moderate Mediterranean, cooled by Adriatic breezes and hillside elevation along the Esino river, so acidity holds even in a warm year like 2022."
+        ],
+        [
+          "Grape",
+          "Verdicchio: naturally high acid, green-tinged, with a signature bitter-almond finish. One of Italy's most age-worthy whites; develops honey and fennel with time."
+        ],
+        [
+          "Vines",
+          "Part of the vineyard dates to 1955. Old vines give lower yields and more concentration, which helps explain the weight and 14% alcohol."
+        ],
+        [
+          "Winemaking",
+          "Soft pressing, free-run juice fermented in temperature-controlled stainless steel. No oak flavour expected."
+        ]
+      ],
+      "facts": [
+        [
+          "Grape",
+          "100% Verdicchio"
+        ],
+        [
+          "Site",
+          "Palombare vineyard, Sasso (Serra San Quirico)"
+        ],
+        [
+          "Vines",
+          "Planted 1955 & 1991, organic"
+        ],
+        [
+          "ABV",
+          "14%"
+        ]
+      ],
+      "flag": "<b>14% on the label = High alcohol</b> on the WSET L3 scale (Medium stops at 13.9%). The high acidity hides it, which is exactly the trap in a blind tasting.",
+      "id": "verdicchio",
+      "name": "Campanelli Palombare 2022",
+      "pair": [
+        "Crudo, grilled whole fish",
+        "Pasta with clams or pesto",
+        "Brodetto (Marche fish stew)",
+        "Roast chicken"
+      ],
+      "price": 12,
+      "ready": "Drink now, with potential for further ageing.",
+      "sat": {
+        "app": "Lemon, green glints",
+        "nose": {
+          "dev": "Developing (3+ years in bottle)",
+          "int": 4,
+          "prim": [
+            "lemon",
+            "green apple",
+            "ripe peach",
+            "chamomile",
+            "fennel",
+            "fresh herbs",
+            "almond"
+          ],
+          "sec": [],
+          "ter": [
+            "first hints of honey / beeswax"
+          ]
+        },
+        "pal": {
+          "acid": 5,
+          "alc": 3,
+          "body": 4,
+          "chars": [
+            "lemon",
+            "peach",
+            "almond",
+            "saline"
+          ],
+          "fi": 4,
+          "fin": 4,
+          "sweet": "Dry"
+        }
+      },
+      "say": "Single-vineyard Verdicchio, part-planted in 1955: lemon and ripe peach, real weight, and that classic bitter-almond finish.",
+      "short": "Verdicchio",
+      "sub": "Verdicchio dei Castelli di Jesi DOC Classico Superiore · Marche, Italy",
+      "type": "white",
+      "wine": "#E6DA8C"
+    },
+    {
+      "concl": "<b>Very good to outstanding.</b> High acidity survives full MLF and is framed by creamy lees texture; pronounced chalky-saline length; layered primary and secondary notes give complexity.",
+      "exam": [
+        "Full MLF and the acid is still high: proof of how naturally acidic Bical and a maritime climate are.",
+        "Large barrels (500–600 L) give texture and slow oxygen with little oak flavour, unlike 225 L barriques.",
+        "Bairrada is Portugal's maritime region, best known for tannic, high-acid Baga reds. Filipa's father, Luís Pato, is its most famous Baga champion."
+      ],
+      "factors": [
+        [
+          "Climate",
+          "Maritime. The nearby Atlantic brings cool nights, and the Cértima river adds foggy mornings. Keeps alcohol low (12%) and acidity high."
+        ],
+        [
+          "Soil",
+          "Jurassic clay-limestone over white marls, with good drainage. Source of the chalky, saline feel."
+        ],
+        [
+          "Grape",
+          "Bical: high acid, citrus and stone fruit, white flowers, waxy texture. Rot-prone in a wet climate, so careful farming matters."
+        ],
+        [
+          "Winemaking",
+          "Hand-picked, slow pneumatic pressing, light settling. Fermented in 500–600 L barrels with native yeasts and bacteria (full MLF). Ten months on fine lees, unstirred, then blended in steel a month before bottling."
+        ],
+        [
+          "Ageing",
+          "The producer says it will age beautifully for around ten years. The 2025 is very young."
+        ]
+      ],
+      "facts": [
+        [
+          "Grape",
+          "100% Bical"
+        ],
+        [
+          "Producer",
+          "Filipa Pato & William Wouters"
+        ],
+        [
+          "Farming",
+          "Demeter biodynamic"
+        ],
+        [
+          "ABV",
+          "12% · 8,449 bottles"
+        ]
+      ],
+      "flag": "<b>Calcário means chalk</b>, a nod to the limestone soils. The back label spells out the method: indigenous yeasts, <b>full malolactic</b>, 500–600 L oak barrels, and 10 months on fine lees <b>without stirring</b> (some retailers say bâtonnage; go with the label).",
+      "id": "bical",
+      "name": "Filipa Pato Nossa Calcário Bical 2025",
+      "pair": [
+        "Fine white fish",
+        "Roast chicken",
+        "Hard, aged cheeses",
+        "Leitão (roast suckling pig)"
+      ],
+      "price": 19,
+      "ready": "Can drink now, but has potential for ageing (about a decade, per the producer).",
+      "sat": {
+        "app": "Pale lemon",
+        "nose": {
+          "dev": "Youthful",
+          "int": 4,
+          "prim": [
+            "lemon",
+            "grapefruit",
+            "green pear",
+            "white peach",
+            "white flowers",
+            "wet chalk",
+            "saline"
+          ],
+          "sec": [
+            "cream / butter (MLF)",
+            "bread dough (lees)",
+            "subtle toast or hazelnut (barrel)"
+          ],
+          "ter": []
+        },
+        "pal": {
+          "acid": 5,
+          "alc": 2,
+          "body": 3,
+          "chars": [
+            "citrus",
+            "pear",
+            "chalk",
+            "cream"
+          ],
+          "fi": 4,
+          "fin": 5,
+          "sweet": "Dry"
+        }
+      },
+      "say": "Portugal's answer to white Burgundy: chalky, creamy and saline at only 12% alcohol, and built to age ten years.",
+      "short": "Bical",
+      "sub": "Bairrada DOC · Beiras, Portugal",
+      "type": "white",
+      "wine": "#EDE6A6"
+    },
+    {
+      "concl": "<b>Very good.</b> More fruit and body than a pale Provençal rosé, kept fresh by Aglianico's acidity; the savoury, salty finish adds interest.",
+      "exam": [
+        "Rosé methods: direct pressing vs short maceration. Blending red and white is not permitted for EU still rosé.",
+        "Rosé colour terms on the SAT: pink, salmon, orange.",
+        "Campania: Aglianico → Taurasi DOCG; whites Fiano di Avellino and Greco di Tufo."
+      ],
+      "factors": [
+        [
+          "Climate",
+          "Warm Mediterranean, moderated by constant sea breezes on steep terraces above the water. Limestone soils add a savoury, saline edge."
+        ],
+        [
+          "Grapes",
+          "Piedirosso (locally Per'e Palummo) brings soft, juicy red fruit. Aglianico brings acidity and a touch of grip; it's the grape behind Taurasi."
+        ],
+        [
+          "Winemaking",
+          "Brief skin contact for colour, then fermented and kept without oak to protect fresh red fruit."
+        ],
+        [
+          "Producer",
+          "Founded in 1980 in Furore. The terraced 'heroic viticulture' of the Amalfi Coast."
+        ]
+      ],
+      "facts": [
+        [
+          "Grapes",
+          "50% Piedirosso, 50% Aglianico"
+        ],
+        [
+          "Vineyards",
+          "Cetara & Raito (Vietri sul Mare)"
+        ],
+        [
+          "Style",
+          "Dry rosé, unoaked"
+        ],
+        [
+          "ABV",
+          "13%"
+        ]
+      ],
+      "flag": "The <b>Gran Furor Divina Costiera</b> crest on the label is a historic brand from 1942 that Andrea Ferraioli bought when he founded the estate with Marisa Cuomo in Furore.",
+      "id": "rosato",
+      "name": "Marisa Cuomo Costa d'Amalfi Rosato 2024",
+      "pair": [
+        "Pizza margherita",
+        "Spaghetti with anchovies or colatura (Cetara's anchovy sauce)",
+        "Grilled fish, salumi"
+      ],
+      "price": 16,
+      "ready": "Drink now. Not intended for ageing; best by next summer.",
+      "sat": {
+        "app": "Medium salmon (the bottle reads salmon-pink; confirm in the glass)",
+        "nose": {
+          "dev": "Youthful",
+          "int": 4,
+          "prim": [
+            "red cherry",
+            "redcurrant",
+            "pomegranate",
+            "strawberry",
+            "Mediterranean herbs",
+            "sea salt"
+          ],
+          "sec": [],
+          "ter": []
+        },
+        "pal": {
+          "acid": 4,
+          "alc": 2,
+          "body": 3,
+          "chars": [
+            "cherry",
+            "pomegranate",
+            "herbs",
+            "saline"
+          ],
+          "fi": 4,
+          "fin": 3,
+          "sweet": "Dry",
+          "tan": 1
+        }
+      },
+      "say": "Not a pale pool rosé: real cherry and pomegranate fruit, plus sea-salt freshness from the Amalfi cliffs.",
+      "short": "Rosato",
+      "sub": "Costa d'Amalfi DOC · Campania, Italy",
+      "type": "rose",
+      "wine": "#E89A86"
+    },
+    {
+      "concl": "<b>Good to very good.</b> Pure, bright and balanced with fine tannins; lighter and simpler than village-level Burgundy, which fits both the appellation and the vintage.",
+      "exam": [
+        "Burgundy pyramid: Regional (Bourgogne, Hautes-Côtes) → Village → Premier Cru → Grand Cru.",
+        "Two Hautes-Côtes zones: de Nuits and de Beaune. Higher elevation = cooler = more acid, less body.",
+        "2024 is a textbook marginal-climate vintage: disease pressure, low yields, lighter wines."
+      ],
+      "factors": [
+        [
+          "Site",
+          "The Hautes-Côtes are the higher, cooler hills west of the famous Côte de Beaune slope. More wind and later ripening mean lighter body and brighter acid."
+        ],
+        [
+          "Vintage",
+          "2024 was a very hard year: rain almost nonstop, early mildew that hit Pinot Noir hardest, and tiny yields. A dry, sunny August and September saved the harvest. Reds came out lighter, juicy and fresh, with fine, ripe tannins."
+        ],
+        [
+          "Grape",
+          "Pinot Noir: thin skins, so pale colour, high acid, low-to-medium tannin and red-fruit aromas."
+        ],
+        [
+          "Winemaking",
+          "Estate-grown and bottled; described by the family as fresh and youthful. Expect little new oak, in line with the vintage."
+        ]
+      ],
+      "facts": [
+        [
+          "Grape",
+          "100% Pinot Noir"
+        ],
+        [
+          "Village",
+          "Change, Hautes-Côtes"
+        ],
+        [
+          "Producer",
+          "Manon & Pierre-Antoine Guérin (5th gen.)"
+        ],
+        [
+          "ABV",
+          "13%"
+        ]
+      ],
+      "flag": "<b>Not the Beaujolais Guérin.</b> It's estate-grown Pinot Noir from Change, in the hills behind the Côte de Beaune. The board's \"Bourgogne Rouge\" undersells it a little: Hautes-Côtes de Beaune is its own regional appellation, a step up from plain Bourgogne.",
+      "id": "bourgogne",
+      "name": "Famille Guérin Hautes-Côtes de Beaune 2024",
+      "pair": [
+        "Salmon, roast chicken",
+        "Mushroom dishes",
+        "Duck, charcuterie, Comté"
+      ],
+      "price": 14,
+      "ready": "Drink now. Could hold 2–4 years; not designed for long ageing.",
+      "sat": {
+        "app": "Pale ruby",
+        "nose": {
+          "dev": "Youthful",
+          "int": 3,
+          "prim": [
+            "red cherry",
+            "raspberry",
+            "redcurrant",
+            "cranberry",
+            "violet"
+          ],
+          "sec": [],
+          "ter": []
+        },
+        "pal": {
+          "acid": 5,
+          "alc": 2,
+          "body": 2,
+          "chars": [
+            "red cherry",
+            "raspberry",
+            "cranberry"
+          ],
+          "fi": 3,
+          "fin": 3,
+          "sweet": "Dry",
+          "tan": 2
+        }
+      },
+      "say": "Real Burgundy from the hills above Beaune: pale, juicy red cherry and raspberry, bright acid, light enough for salmon.",
+      "short": "Pinot Noir",
+      "sub": "Bourgogne Hautes-Côtes de Beaune AOC · Burgundy, France",
+      "type": "red",
+      "wine": "#A3283F"
+    }
+  ]
+}
